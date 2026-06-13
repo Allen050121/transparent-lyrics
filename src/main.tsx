@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -52,15 +52,6 @@ type Track = {
   lyricStyle: LyricStyle;
 };
 
-const stitchPages: Record<View, string> = {
-  main: "stitch/main.html",
-  playlist: "stitch/playlist.html",
-  recent: "stitch/recent.html",
-  import: "stitch/import.html",
-  lyrics: "stitch/lyrics.html",
-  mini: "stitch/mini.html",
-};
-
 const defaultLyricStyle: LyricStyle = {
   x: 0,
   y: 0,
@@ -79,46 +70,10 @@ const defaultLyricStyle: LyricStyle = {
   glow: 20,
 };
 
-const starterTracks: Track[] = [
-  {
-    id: "demo-1",
-    title: "Luminous Drift",
-    artist: "Echoes of Silence",
-    album: "Neon Nights Vol. 1",
-    duration: 252,
-    durationLabel: "04:12",
-    added: "2澶╁墠",
-    format: "FLAC",
-    lyricStyle: defaultLyricStyle,
-  },
-  {
-    id: "demo-2",
-    title: "Synthesizer Dreams",
-    artist: "Aurora Borealis",
-    album: "Midnight Drives",
-    duration: 225,
-    durationLabel: "03:45",
-    added: "1鍛ㄥ墠",
-    format: "MP3",
-    lyricStyle: defaultLyricStyle,
-  },
-  {
-    id: "demo-3",
-    title: "Glass Resonance",
-    artist: "The Architects",
-    album: "Structure & Form",
-    duration: 321,
-    durationLabel: "05:21",
-    added: "2鍛ㄥ墠",
-    format: "WAV",
-    lyricStyle: defaultLyricStyle,
-  },
-];
-
 const placeholderTrack: Track = {
   id: "placeholder",
-  title: "暂无播放",
-  artist: "导入歌曲后开始播放",
+  title: "\u6682\u65e0\u64ad\u653e",
+  artist: "\u5bfc\u5165\u6b4c\u66f2\u540e\u5f00\u59cb\u64ad\u653e",
   album: "",
   duration: 0,
   durationLabel: "00:00",
@@ -135,10 +90,8 @@ const recentTrackLimit = 200;
 const reimportLabel = "\u9700\u91cd\u65b0\u5bfc\u5165";
 const localMusicLabel = "\u672c\u5730\u97f3\u4e50";
 const justNowLabel = "\u521a\u521a";
-
-function textOf(element: Element) {
-  return (element.textContent ?? "").replace(/\s+/g, " ").trim();
-}
+const defaultCover =
+  "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=200&auto=format&fit=crop";
 
 function formatDuration(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "00:00";
@@ -148,7 +101,7 @@ function formatDuration(seconds: number) {
 }
 
 function createTrackFromImportedFile(file: ImportedAudioFile, index: number): Track {
-  const title = file.title || file.name || "鏈湴闊充箰";
+  const title = file.title || file.name || "\u672c\u5730\u97f3\u4e50";
   const duration = Number(file.duration ?? 0);
   return {
     id: `track-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
@@ -180,10 +133,10 @@ function mergeImportedTracks(imported: Track[], currentTracks: Track[]) {
 }
 
 function lyricStatusLabel(status?: LyricsStatus) {
-  if (status === "matched") return "已匹配";
-  if (status === "not-found") return "无结果";
-  if (status === "failed") return "匹配失败";
-  return "未匹配";
+  if (status === "matched") return "\u5df2\u5339\u914d";
+  if (status === "not-found") return "\u65e0\u7ed3\u679c";
+  if (status === "failed") return "\u5339\u914d\u5931\u8d25";
+  return "\u672a\u5339\u914d";
 }
 
 function parseLrcLines(text?: string) {
@@ -308,6 +261,7 @@ function writeRecentTrackIds(trackIds: string[]) {
 
 function App() {
   const [view, setView] = useState<View>("main");
+  const [selectedPlaylist, setSelectedPlaylist] = useState("\u6df1\u591c\u6c89\u6d78");
   const [history, setHistory] = useState<View[]>(["main"]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [tracks, setTracks] = useState<Track[]>(readLibrary);
@@ -317,14 +271,11 @@ function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [matchingLyrics, setMatchingLyrics] = useState(false);
-  const [iframeReady, setIframeReady] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const objectUrlsRef = useRef<Map<string, string>>(new Map());
   const audioInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const lrcInputRef = useRef<HTMLInputElement>(null);
-  const src = useMemo(() => stitchPages[view], [view]);
   const activeTrack = tracks.find((track) => track.id === activeTrackId) ?? tracks[0] ?? placeholderTrack;
   const recentTracks = useMemo(() => {
     const byId = new Map(tracks.map((track) => [track.id, track]));
@@ -342,7 +293,6 @@ function App() {
   const navigate = useCallback(
     (nextView: View) => {
       if (nextView === view) return;
-      setIframeReady(false);
       setView(nextView);
       setHistory((current) => {
         const next = [...current.slice(0, historyIndex + 1), nextView];
@@ -353,10 +303,14 @@ function App() {
     [historyIndex, view],
   );
 
+  const navigatePlaylist = useCallback((playlistName: string) => {
+    setSelectedPlaylist(playlistName);
+    navigate("playlist");
+  }, [navigate]);
+
   const goBack = useCallback(() => {
     setHistoryIndex((currentIndex) => {
       const nextIndex = Math.max(0, currentIndex - 1);
-      if (nextIndex !== currentIndex) setIframeReady(false);
       setView(history[nextIndex] ?? "main");
       return nextIndex;
     });
@@ -365,7 +319,6 @@ function App() {
   const goForward = useCallback(() => {
     setHistoryIndex((currentIndex) => {
       const nextIndex = Math.min(history.length - 1, currentIndex + 1);
-      if (nextIndex !== currentIndex) setIframeReady(false);
       setView(history[nextIndex] ?? view);
       return nextIndex;
     });
@@ -565,11 +518,10 @@ function App() {
           : track,
       );
       commitTracks(nextTracks);
-      patchCurrentIframe(iframeRef.current?.contentDocument, tracks, recentTracks, activeTrack, playing, currentTime, volume);
       return;
     }
     imageInputRef.current?.click();
-  }, [activeTrack, commitTracks, currentTime, playing, recentTracks, tracks, volume]);
+  }, [activeTrack, commitTracks, tracks]);
 
   const togglePlayback = useCallback(() => {
     if (!activeTrack) {
@@ -650,144 +602,48 @@ function App() {
     }
   }, [playing]);
 
-  useEffect(() => {
-    const doc = iframeRef.current?.contentDocument;
-    patchCurrentIframe(doc, tracks, recentTracks, activeTrack, playing, currentTime, volume, {
-      currentView: view,
-      navigate,
-      goBack,
-      goForward,
-      playTrack,
-      playRelative,
-      togglePlayback,
-      seekTo,
-      importAudio,
-      importFolder,
-      importLrc,
-      importImage,
-      matchAllLyrics,
-      retryActiveLyrics,
-      setVolume,
-    });
-  }, [
-    activeTrack,
-    currentTime,
-    goBack,
-    goForward,
-    importAudio,
-    importFolder,
-    importImage,
-    importLrc,
-    matchAllLyrics,
-    navigate,
-    playRelative,
-    playTrack,
-    seekTo,
-    playing,
-    retryActiveLyrics,
-    recentTracks,
-    tracks,
-    togglePlayback,
-    view,
-    volume,
-  ]);
-
-  const handleIframeLoad = useCallback(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-    patchCurrentIframe(iframe.contentDocument, tracks, recentTracks, activeTrack, playing, currentTime, volume, {
-      currentView: view,
-      navigate,
-      goBack,
-      goForward,
-      playTrack,
-      playRelative,
-      togglePlayback,
-      seekTo,
-      importAudio,
-      importFolder,
-      importLrc,
-      importImage,
-      matchAllLyrics,
-      retryActiveLyrics,
-      setVolume,
-    });
-    requestAnimationFrame(() => setIframeReady(true));
-  }, [
-    activeTrack,
-    currentTime,
-    goBack,
-    goForward,
-    importAudio,
-    importFolder,
-    importImage,
-    importLrc,
-    matchAllLyrics,
-    navigate,
-    playRelative,
-    playTrack,
-    seekTo,
-    playing,
-    retryActiveLyrics,
-    recentTracks,
-    tracks,
-    togglePlayback,
-    view,
-    volume,
-  ]);
-
   return (
-    <main className="stitch-host">
-      <iframe
-        ref={iframeRef}
-        className={iframeReady ? "stitch-frame-ready" : "stitch-frame-loading"}
-        src={src}
-        title="Transparent Lyrics Stitch UI"
-        onLoad={handleIframeLoad}
+    <main className="app-shell">
+      <SideNav currentView={view} selectedPlaylist={selectedPlaylist} navigate={navigate} navigatePlaylist={navigatePlaylist} />
+      <TopBar view={view} selectedPlaylist={selectedPlaylist} goBack={goBack} goForward={goForward} />
+      <section className="content-shell">
+        {view === "main" && (
+          <LibraryPage tracks={tracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} playAll={() => tracks[0] && playTrack(tracks[0].id)} />
+        )}
+        {view === "recent" && (
+          <RecentPage tracks={recentTracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} />
+        )}
+        {view === "import" && (
+          <ImportPage
+            tracks={tracks}
+            matchingLyrics={matchingLyrics}
+            importAudio={importAudio}
+            importFolder={importFolder}
+            importLrc={importLrc}
+            importImage={importImage}
+            matchAllLyrics={matchAllLyrics}
+            retryActiveLyrics={retryActiveLyrics}
+          />
+        )}
+        {view === "playlist" && (
+          <PlaylistPage playlistName={selectedPlaylist} tracks={tracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} />
+        )}
+        {view === "lyrics" && (
+          <LyricsPage activeTrack={activeTrack} currentTime={currentTime} />
+        )}
+        {view === "mini" && <MiniPage activeTrack={activeTrack} />}
+      </section>
+      <PlayerBar
+        activeTrack={activeTrack}
+        playing={playing}
+        currentTime={currentTime}
+        volume={volume}
+        setVolume={setVolume}
+        playRelative={playRelative}
+        togglePlayback={togglePlayback}
+        seekTo={seekTo}
+        navigate={navigate}
       />
-      <div className="player-hitboxes" aria-label="player controls">
-        <button className="player-hitbox player-prev-hitbox" type="button" aria-label="上一首" onClick={() => playRelative(-1)} />
-        <button className="player-hitbox player-play-hitbox" type="button" aria-label={playing ? "鏆傚仠" : "鎾斁"} onClick={togglePlayback} />
-        <button className="player-hitbox player-next-hitbox" type="button" aria-label="下一首" onClick={() => playRelative(1)} />
-        <div
-          className="player-progress-hitbox"
-          role="slider"
-          aria-label="鎾斁杩涘害"
-          aria-valuemin={0}
-          aria-valuemax={Math.round(activeTrack.duration || 0)}
-          aria-valuenow={Math.round(currentTime)}
-          onPointerDown={(event) => {
-            const target = event.currentTarget;
-            const update = (clientX: number) => {
-              const rect = target.getBoundingClientRect();
-              const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-              const audioDuration = audioRef.current && Number.isFinite(audioRef.current.duration)
-                ? audioRef.current.duration
-                : activeTrack.duration;
-              seekTo(percent * (audioDuration || 0));
-            };
-            target.setPointerCapture(event.pointerId);
-            update(event.clientX);
-          }}
-          onPointerMove={(event) => {
-            if (event.buttons !== 1) return;
-            const rect = event.currentTarget.getBoundingClientRect();
-            const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-            const audioDuration = audioRef.current && Number.isFinite(audioRef.current.duration)
-              ? audioRef.current.duration
-              : activeTrack.duration;
-            seekTo(percent * (audioDuration || 0));
-          }}
-          onClick={(event) => {
-            const rect = event.currentTarget.getBoundingClientRect();
-            const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-            const audioDuration = audioRef.current && Number.isFinite(audioRef.current.duration)
-              ? audioRef.current.duration
-              : activeTrack.duration;
-            seekTo(percent * (audioDuration || 0));
-          }}
-        />
-      </div>
       <audio
         ref={audioRef}
         onLoadedMetadata={(event) => {
@@ -847,1069 +703,228 @@ function App() {
   );
 }
 
-type PatchActions = {
-  currentView: View;
-  navigate: (view: View) => void;
-  goBack: () => void;
-  goForward: () => void;
-  playTrack: (trackId: string) => void;
-  playRelative: (offset: number) => void;
-  togglePlayback: () => void;
-  seekTo: (seconds: number) => void;
-  importAudio: () => void;
-  importFolder: () => void;
-  importLrc: () => void;
-  importImage: () => void;
-  matchAllLyrics: () => void;
-  retryActiveLyrics: () => void;
-  setVolume: (volume: number) => void;
-};
-
-function patchCurrentIframe(
-  doc: Document | null | undefined,
-  tracks: Track[],
-  recentTracks: Track[],
-  activeTrack: Track,
-  playing: boolean,
-  currentTime: number,
-  volume: number,
-  actions?: PatchActions,
-) {
-  if (!doc) return;
-  const currentView = actions?.currentView;
-  const displayedTracks = currentView === "recent" ? recentTracks : tracks;
-  injectAppCss(doc);
-  patchNavigationState(doc, currentView);
-  patchLibrarySummary(doc, tracks);
-  patchSongs(doc, displayedTracks, activeTrack, playing, actions);
-  patchSecondaryTrackRows(doc, displayedTracks, activeTrack, playing, actions);
-  patchPlayer(doc, activeTrack, playing, currentTime, volume, actions);
-  patchResourceStatus(doc, tracks);
-  patchImportedResources(doc, tracks, actions);
-  if (doc.querySelector(".font-lyrics-active")) {
-    injectLyricsPanelControls(doc);
-    patchLyricsPage(doc, activeTrack, currentTime, actions);
-  }
-  if (actions) {
-    wireNavigation(doc, actions);
-    wireImportCards(doc, actions);
-  }
+function Icon({ children, className = "" }: { children: string; className?: string }) {
+  return <span className={`material-symbols-outlined ${className}`}>{children}</span>;
 }
 
-function injectAppCss(doc: Document) {
-  if (doc.getElementById("tl-app-patches")) return;
-  const style = doc.createElement("style");
-  style.id = "tl-app-patches";
-  style.textContent = `
-    .tl-route-controls { position: fixed; top: 18px; left: 280px; z-index: 9999; display: flex; gap: 8px; }
-    body:has(nav) .tl-route-controls { display: none; }
-    body:has(aside) .tl-route-controls { display: none; }
-    body:not(:has(nav)) .tl-route-controls { left: 24px; }
-    .tl-route-controls button, .tl-style-toggle {
-      width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
-      border-radius: 999px; border: 1px solid rgba(255,255,255,.16); color: #e5e2e1;
-      background: rgba(19,19,19,.46); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 10px 30px rgba(0,0,0,.25);
-    }
-    .tl-route-controls button:hover, .tl-style-toggle:hover { color: #a7e0ff; transform: translateY(-1px); }
-    .tl-route-controls button:disabled { opacity: .34; cursor: default; transform: none; }
-    nav a.tl-nav-active,
-    aside a.tl-nav-active {
-      color: #e5e2e1 !important;
-      background: rgba(255, 255, 255, .10) !important;
-    }
-    nav a.tl-nav-inactive,
-    aside a.tl-nav-inactive {
-      color: #bdc8cf !important;
-      background: transparent !important;
-    }
-    nav a.tl-nav-inactive:hover,
-    aside a.tl-nav-inactive:hover {
-      color: #e5e2e1 !important;
-      background: rgba(255, 255, 255, .05) !important;
-    }
-    .tl-style-panel { top: 5rem !important; bottom: 6.75rem !important; width: 18rem !important; padding: .9rem 1rem !important; gap: .58rem !important; overflow: hidden !important; scrollbar-width: none !important; transition: transform .24s ease, opacity .2s ease; }
-    .tl-style-panel::-webkit-scrollbar { display: none !important; }
-    .tl-style-panel h2 { padding-bottom: .45rem !important; margin-bottom: .1rem !important; font-size: 11px !important; line-height: 14px !important; }
-    .tl-style-panel h3 { padding-bottom: .25rem !important; font-size: 10px !important; line-height: 12px !important; }
-    .tl-style-panel .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: .48rem !important; }
-    .tl-style-panel .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: .24rem !important; }
-    .tl-style-panel .pt-4 { padding-top: .45rem !important; }
-    .tl-style-panel .pb-2 { padding-bottom: .22rem !important; }
-    .tl-style-panel span, .tl-style-panel button, .tl-style-panel label { font-size: 13px !important; line-height: 18px !important; }
-    .tl-style-panel .custom-slider { height: 3px !important; }
-    .tl-style-panel .custom-slider::-webkit-slider-thumb { width: 10px !important; height: 10px !important; }
-    .tl-style-panel .w-10.h-5 { width: 2rem !important; height: 1rem !important; }
-    .tl-style-panel .w-4.h-4 { width: .75rem !important; height: .75rem !important; }
-    .tl-style-panel .w-8.h-8 { width: 1.7rem !important; height: 1.7rem !important; }
-    .tl-style-panel .w-6.h-6 { width: 1.25rem !important; height: 1.25rem !important; }
-    .tl-style-toggle { position: fixed; top: 5.1rem; right: 1rem; z-index: 10000; }
-    body.tl-style-hidden .tl-style-panel { transform: translateX(calc(100% + 3rem)); opacity: 0; pointer-events: none; }
-    .tl-clickable { cursor: pointer; }
-    .glass-row {
-      border-left-color: transparent !important;
-      transform: none !important;
-      transition: background-color .16s ease, border-color .16s ease !important;
-    }
-    .glass-row:hover {
-      transform: none !important;
-      background: rgba(255, 255, 255, .055) !important;
-    }
-    .glass-row.active,
-    .glass-row.tl-row-playing {
-      background: rgba(167, 224, 255, .10) !important;
-    }
-    .glass-row .row-actions,
-    .glass-row .tl-stitch-hover-play {
-      display: none !important;
-    }
-    .tl-cover-host {
-      position: relative !important;
-      flex-shrink: 0 !important;
-    }
-    .glass-row:hover .tl-cover-host::after,
-    .tl-row-playing .tl-cover-host::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      background: rgba(0, 0, 0, .24);
-      pointer-events: none;
-    }
-    .tl-cover-play-badge {
-      position: absolute;
-      left: 20px;
-      top: 50%;
-      z-index: 2;
-      width: 22px;
-      height: 22px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 999px;
-      color: #e5e2e1;
-      background: rgba(19, 19, 19, .54);
-      border: 1px solid rgba(255, 255, 255, .22);
-      box-shadow: 0 8px 18px rgba(0,0,0,.28);
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity .14s ease;
-    }
-    .glass-row:hover .tl-cover-play-badge,
-    .tl-row-playing .tl-cover-play-badge {
-      opacity: 1;
-    }
-    .tl-cover-play-badge .material-symbols-outlined {
-      font-size: 18px !important;
-      font-variation-settings: 'FILL' 1;
-    }
-    .glass-card, .glass-card [class*='border-dashed'] { cursor: pointer; }
-    .glass-card:hover [class*='border-dashed'] {
-      border-color: rgba(167, 224, 255, .55) !important;
-      background: rgba(167, 224, 255, .04) !important;
-    }
-    .tl-native-import-card {
-      transform: none !important;
-      min-width: 0 !important;
-      height: auto !important;
-      min-height: 17rem !important;
-      padding: 1.25rem !important;
-    }
-    .tl-native-import-card:hover {
-      transform: none !important;
-      background: rgba(53, 53, 52, .42) !important;
-    }
-    .tl-native-import-card .dashed-dropzone {
-      gap: .7rem !important;
-      padding: .85rem !important;
-      min-height: 8.6rem !important;
-      text-align: center !important;
-    }
-    .tl-native-import-grid {
-      display: grid !important;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
-      gap: 1.25rem !important;
-      margin-bottom: 3rem !important;
-    }
-    .tl-native-import-card h2 {
-      overflow-wrap: anywhere !important;
-      line-height: 1.16 !important;
-    }
-    .tl-card-status {
-      color: #bdc8cf;
-      font: 600 12px/16px Inter, "Microsoft YaHei", sans-serif;
-    }
-    .tl-card-actions {
-      width: 100%;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: .5rem;
-    }
-    .tl-card-action {
-      min-width: 7.2rem;
-      height: 2rem;
-      padding: 0 .85rem;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.15);
-      background: rgba(255,255,255,.08);
-      color: #e5e2e1;
-      font: 700 12px/1 Inter, "Microsoft YaHei", sans-serif;
-      cursor: pointer;
-    }
-    .tl-card-action:hover {
-      border-color: rgba(167, 224, 255, .5);
-      background: rgba(167, 224, 255, .16);
-      color: #a7e0ff;
-    }
-    .tl-empty-state {
-      padding: 3rem 1rem;
-      color: #bdc8cf;
-      font: 700 15px/1.6 Inter, "Microsoft YaHei", sans-serif;
-      text-align: center;
-      border-top: 1px solid rgba(255,255,255,.08);
-    }
-    .tl-progress-track {
-      position: relative !important;
-      height: 6px !important;
-      overflow: visible !important;
-      cursor: pointer !important;
-      background: rgba(255, 255, 255, .12) !important;
-    }
-    .tl-progress-fill {
-      height: 100% !important;
-      background: #a7e0ff !important;
-      box-shadow: 0 0 12px rgba(167, 224, 255, .4);
-      pointer-events: none;
-    }
-    .tl-progress-thumb {
-      position: absolute !important;
-      top: 50% !important;
-      width: 13px !important;
-      height: 13px !important;
-      border-radius: 999px !important;
-      background: #a7e0ff !important;
-      border: 2px solid rgba(19, 19, 19, .72) !important;
-      box-shadow: 0 0 0 4px rgba(167, 224, 255, .16), 0 8px 20px rgba(0,0,0,.35) !important;
-      opacity: 1 !important;
-      transform: translate(-50%, -50%) !important;
-      pointer-events: none !important;
-      transition: none !important;
-    }
-    .tl-volume-track {
-      position: relative !important;
-      overflow: visible !important;
-      cursor: pointer !important;
-    }
-    .tl-volume-fill {
-      background: #a7e0ff !important;
-      box-shadow: 0 0 12px rgba(167, 224, 255, .45);
-    }
-    .tl-volume-thumb {
-      position: absolute;
-      top: 50%;
-      width: 14px;
-      height: 14px;
-      border-radius: 999px;
-      border: 2px solid rgba(167, 224, 255, .9);
-      background: rgba(19, 19, 19, .82);
-      box-shadow: 0 0 0 4px rgba(167, 224, 255, .12), 0 8px 22px rgba(0,0,0,.35);
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-    }
-    .tl-volume-bubble {
-      position: absolute;
-      left: 0;
-      top: -36px;
-      min-width: 34px;
-      height: 30px;
-      padding: 0 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 8px;
-      color: #e5e2e1;
-      font: 600 13px/1 Inter, "Microsoft YaHei", sans-serif;
-      background: rgba(35, 35, 40, .96);
-      border: 1px solid rgba(255,255,255,.12);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 10px 24px rgba(0,0,0,.38);
-      transform: translateX(-50%);
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity .16s ease, transform .16s ease;
-    }
-    .tl-volume-track:hover .tl-volume-bubble,
-    .tl-volume-track.tl-volume-active .tl-volume-bubble {
-      opacity: .92;
-      transform: translateX(-50%) translateY(-2px);
-    }
-  `;
-  doc.head.appendChild(style);
+function getCover(track: Track) {
+  return track.lyricStyle.backgroundImage || defaultCover;
 }
 
-function getNavItems(doc: Document) {
-  return Array.from(doc.querySelectorAll("nav a, aside a")) as HTMLElement[];
-}
-
-function viewForNavItem(element: HTMLElement, index?: number): View | null {
-  const text = textOf(element);
-  if (/library_music|音乐库|闊充箰/.test(text)) return "main";
-  if (/history|最近播放/.test(text)) return "recent";
-  if (/upload_file|导入资源|资源导入|瀵煎叆/.test(text)) return "import";
-  if (/深夜沉浸|playlist_play/.test(text)) return "playlist";
-  if (/雨天漫步|water_drop/.test(text)) return "playlist";
-  if (/工作电台/.test(text)) return "playlist";
-  if (index === 0) return "main";
-  if (index === 1) return "recent";
-  if (index === 2) return "import";
-  if (typeof index === "number" && index >= 3) return "playlist";
-  return null;
-}
-
-function patchNavigationState(doc: Document, currentView?: View) {
-  if (!currentView) return;
-  getNavItems(doc).forEach((element, index) => {
-    const targetView = viewForNavItem(element, index);
-    if (!targetView) return;
-    element.dataset.tlView = targetView;
-    const isActive = targetView === currentView || (currentView === "lyrics" && targetView === "main");
-    element.classList.toggle("tl-nav-active", isActive);
-    element.classList.toggle("tl-nav-inactive", !isActive);
-  });
-}
-
-function wireSideNavigation(doc: Document, getActions: () => PatchActions) {
-  getNavItems(doc).forEach((element, index) => {
-    const targetView = viewForNavItem(element, index);
-    if (!targetView) return;
-    element.dataset.tlView = targetView;
-    if (element.dataset.tlNavReady === "true") return;
-    element.dataset.tlNavReady = "true";
-    element.classList.add("tl-clickable");
-    element.addEventListener(
-      "click",
-      (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        getActions().navigate((element.dataset.tlView as View | undefined) ?? targetView);
-      },
-      true,
-    );
-  });
-}
-
-function patchLibrarySummary(doc: Document, tracks: Track[]) {
-  const heading = Array.from(doc.querySelectorAll("h2")).find((element) => /音乐库|闊充箰/.test(textOf(element)));
-  if (!heading) return;
-  const summary = heading.nextElementSibling;
-  if (!summary) return;
-  const spans = Array.from(summary.querySelectorAll("span")) as HTMLElement[];
+function getLibraryStats(tracks: Track[]) {
   const totalSeconds = tracks.reduce((sum, track) => sum + (Number(track.duration) || 0), 0);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.round((totalSeconds % 3600) / 60);
-  if (spans[0]) spans[0].textContent = `${tracks.length} 首歌曲`;
-  if (spans[2]) spans[2].textContent = hours ? `${hours} 小时 ${minutes} 分钟` : `${minutes} 分钟`;
-}
-
-function wireNavigation(doc: Document, actions: PatchActions) {
-  (doc.body as HTMLElement & { __tlActions?: PatchActions }).__tlActions = actions;
-  const getActions = () => (doc.body as HTMLElement & { __tlActions?: PatchActions }).__tlActions ?? actions;
-  wireSideNavigation(doc, getActions);
-  if (doc.body.dataset.tlNavigationReady === "true") return;
-  doc.body.dataset.tlNavigationReady = "true";
-  const controls = doc.createElement("div");
-  controls.className = "tl-route-controls";
-  controls.innerHTML = `
-    <button type="button" aria-label="杩斿洖"><span class="material-symbols-outlined">arrow_back_ios_new</span></button>
-    <button type="button" aria-label="鍓嶈繘"><span class="material-symbols-outlined">arrow_forward_ios</span></button>
-  `;
-  if (doc.querySelector("nav, aside")) {
-    controls.style.display = "none";
-  }
-  const [backButton, forwardButton] = Array.from(controls.querySelectorAll("button"));
-  backButton?.addEventListener("click", () => getActions().goBack());
-  forwardButton?.addEventListener("click", () => getActions().goForward());
-  doc.body.appendChild(controls);
-
-  doc.body.addEventListener(
-    "click",
-    (event) => {
-      const target = event.target as HTMLElement | null;
-      if (!target) return;
-      if (target.closest(".glass-row")) return;
-      if (target.closest(".tl-card-action")) return;
-      const hit = target.closest("a, button, .glass-card, .glass-panel, .group, [class*='border-dashed']") as
-        | HTMLElement
-        | null;
-      if (!hit) return;
-      const text = textOf(hit);
-      const navHit = hit.closest("nav a, aside a") as HTMLElement | null;
-      const navItems = navHit ? getNavItems(doc) : [];
-      const navIndex = navHit ? navItems.indexOf(navHit) : -1;
-      const navTarget =
-        (navHit?.dataset.tlView as View | undefined) ??
-        (navHit ? viewForNavItem(navHit, navIndex) : null);
-      const card = target.closest(".glass-card") as HTMLElement | null;
-      const cardText = card ? textOf(card) : text;
-
-      const run = (handler: () => void) => {
-        event.preventDefault();
-        event.stopPropagation();
-        handler();
-      };
-      const currentActions = getActions();
-
-      if (navTarget) return run(() => currentActions.navigate(navTarget));
-      if (/lyrics/.test(text)) return run(() => currentActions.navigate("lyrics"));
-      if (/queue_music|鏍峰紡棰勮|杩蜂綘/.test(text)) return run(() => currentActions.navigate("mini"));
-      if (/arrow_back_ios|chevron_left/.test(text)) return run(currentActions.goBack);
-      if (/arrow_forward_ios|chevron_right/.test(text)) return run(currentActions.goForward);
-      if (/pause|play_arrow|鍏ㄩ儴鎾斁/.test(text)) return run(currentActions.togglePlayback);
-      if (/skip_previous/.test(text)) return run(() => currentActions.playRelative(-1));
-      if (/skip_next/.test(text)) return run(() => currentActions.playRelative(1));
-
-      if (/瀵煎叆姝屾洸|cloud_upload|鎷栨嫿鏂囦欢鑷虫|鐐瑰嚮閫夋嫨/.test(cardText)) return run(currentActions.importAudio);
-      if (/瀵煎叆姝岃瘝|LRC|subtitles|鎷栨嫿 LRC/.test(cardText)) return run(currentActions.importLrc);
-      if (/涓婁紶澹佺焊|閫夋嫨鍥剧墖|wallpaper/.test(cardText)) return run(currentActions.importImage);
-      if (/瀵煎叆灏侀潰鍥緗add_photo_alternate|鎷栨嫿灏侀潰/.test(cardText)) return run(currentActions.importImage);
-    },
-    true,
-  );
-
-  Array.from(doc.querySelectorAll("a, button, [role='button']")).forEach((element) => {
-    const htmlElement = element as HTMLElement;
-    if (htmlElement.closest("nav, aside")) return;
-    if (htmlElement.closest(".glass-row")) return;
-    if (htmlElement.closest(".tl-card-action")) return;
-    if (htmlElement.closest(".glass-card")) return;
-    const text = textOf(htmlElement);
-    const bind = (handler: () => void) => {
-      htmlElement.classList.add("tl-clickable");
-      htmlElement.addEventListener("click", (event) => {
-        event.preventDefault();
-        handler();
-      });
-    };
-
-    if (/lyrics/.test(text)) bind(() => actions.navigate("lyrics"));
-    if (/queue_music|鏍峰紡棰勮|杩蜂綘/.test(text)) bind(() => actions.navigate("mini"));
-    if (/arrow_back_ios|chevron_left/.test(text)) bind(actions.goBack);
-    if (/arrow_forward_ios|chevron_right/.test(text)) bind(actions.goForward);
-    if (/pause|play_arrow|鍏ㄩ儴鎾斁/.test(text)) bind(actions.togglePlayback);
-    if (/skip_previous/.test(text)) bind(() => actions.playRelative(-1));
-    if (/skip_next/.test(text)) bind(() => actions.playRelative(1));
-    if (/鎷栨嫿鏂囦欢鑷虫|瀵煎叆姝屾洸|cloud_upload/.test(text)) bind(actions.importAudio);
-    if (/LRC|瀵煎叆姝岃瘝|subtitles/.test(text)) bind(actions.importLrc);
-    if (/涓婁紶澹佺焊|閫夋嫨鍥剧墖|灏侀潰|add_photo_alternate|wallpaper|image/.test(text)) bind(actions.importImage);
-  });
-}
-
-function wireImportCards(doc: Document, actions: PatchActions) {
-  const cards = Array.from(doc.querySelectorAll(".glass-card")) as HTMLElement[];
-  if (!cards.length) return;
-  cards[0]?.parentElement?.classList.add("tl-native-import-grid");
-  const configureCard = (
-    card: HTMLElement | undefined,
-    options: {
-      icon: string;
-      title: string;
-      description: string;
-      body: string;
-      fallback: () => void;
-      buttons: Array<{ selector: string; handler: () => void }>;
-    },
-  ) => {
-    if (!card) return;
-    card.classList.add("tl-native-import-card", "tl-clickable");
-    const icon = card.querySelector(".material-symbols-outlined") as HTMLElement | null;
-    const title = card.querySelector("h2") as HTMLElement | null;
-    const description = card.querySelector("p") as HTMLElement | null;
-    const dropzone = card.querySelector(".dashed-dropzone") as HTMLElement | null;
-    if (icon) icon.textContent = options.icon;
-    if (title) title.textContent = options.title;
-    if (description) description.textContent = options.description;
-    if (dropzone && dropzone.dataset.tlNativeReady !== "true") {
-      dropzone.dataset.tlNativeReady = "true";
-      dropzone.innerHTML = options.body;
-    }
-    if (card.dataset.tlImportReady !== "true") {
-      card.dataset.tlImportReady = "true";
-      card.addEventListener("click", (event) => {
-        if ((event.target as HTMLElement | null)?.closest(".tl-card-action")) return;
-        event.preventDefault();
-        event.stopPropagation();
-        options.fallback();
-      });
-    }
-    options.buttons.forEach(({ selector, handler }) => {
-      const button = card.querySelector(selector) as HTMLElement | null;
-      if (!button || button.dataset.tlButtonReady === "true") return;
-      button.dataset.tlButtonReady = "true";
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        handler();
-      });
-    });
+  return {
+    count: `${tracks.length} \u9996\u6b4c\u66f2`,
+    duration: hours ? `${hours} \u5c0f\u65f6 ${minutes} \u5206\u949f` : `${minutes} \u5206\u949f`,
   };
-
-  configureCard(cards[0], {
-    icon: "library_add",
-    title: "导入本地歌曲",
-    description: "选择单首歌曲，或扫描整个音乐文件夹。",
-    body: `
-      <span class="material-symbols-outlined text-4xl text-outline mb-3 group-hover:text-primary transition-colors">library_music</span>
-      <div class="tl-card-status">导入后自动尝试匹配歌词</div>
-      <div class="tl-card-actions">
-        <button class="tl-card-action" data-action="audio-file" type="button">选择歌曲文件</button>
-        <button class="tl-card-action" data-action="audio-folder" type="button">选择音乐文件夹</button>
-      </div>
-    `,
-    fallback: actions.importAudio,
-    buttons: [
-      { selector: "[data-action='audio-file']", handler: actions.importAudio },
-      { selector: "[data-action='audio-folder']", handler: actions.importFolder },
-    ],
-  });
-
-  configureCard(cards[1], {
-    icon: "lyrics",
-    title: "歌词补全",
-    description: "支持 LRC 导入，也可批量在线匹配本地歌曲。",
-    body: `
-      <span class="material-symbols-outlined text-4xl text-outline mb-3 group-hover:text-primary transition-colors">subtitles</span>
-      <div class="tl-card-status">优先保存同步歌词</div>
-      <div class="tl-card-actions">
-        <button class="tl-card-action" data-action="lyrics-batch" type="button">批量补全歌词</button>
-        <button class="tl-card-action" data-action="lyrics-file" type="button">导入 LRC 文件</button>
-      </div>
-    `,
-    fallback: actions.matchAllLyrics,
-    buttons: [
-      { selector: "[data-action='lyrics-batch']", handler: actions.matchAllLyrics },
-      { selector: "[data-action='lyrics-file']", handler: actions.importLrc },
-    ],
-  });
-
-  configureCard(cards[2], {
-    icon: "wallpaper",
-    title: "上传壁纸",
-    description: "为歌词页面设置专属背景图。",
-    body: `
-      <span class="material-symbols-outlined text-4xl text-outline mb-3 group-hover:text-primary transition-colors">add_photo_alternate</span>
-      <div class="tl-card-status">支持 JPG、PNG 等图片</div>
-      <div class="tl-card-actions">
-        <button class="tl-card-action" data-action="wallpaper-file" type="button">选择图片</button>
-      </div>
-    `,
-    fallback: actions.importImage,
-    buttons: [{ selector: "[data-action='wallpaper-file']", handler: actions.importImage }],
-  });
-
-  configureCard(cards[3], {
-    icon: "image",
-    title: "关联封面图",
-    description: "为当前歌曲补充封面，后续会支持自动补全。",
-    body: `
-      <span class="material-symbols-outlined text-4xl text-outline mb-3 group-hover:text-primary transition-colors">add_photo_alternate</span>
-      <div class="tl-card-status">当前版本先手动选择图片</div>
-      <div class="tl-card-actions">
-        <button class="tl-card-action" data-action="cover-file" type="button">选择封面图</button>
-      </div>
-    `,
-    fallback: actions.importImage,
-    buttons: [{ selector: "[data-action='cover-file']", handler: actions.importImage }],
-  });
 }
 
-function patchSongs(doc: Document, tracks: Track[], activeTrack: Track, playing: boolean, actions?: PatchActions) {
-  let rows = Array.from(doc.querySelectorAll(".glass-row")) as HTMLElement[];
-  if (!rows.length) return;
-  const rowContainer = rows[0]?.parentElement;
-  let emptyState = doc.querySelector(".tl-library-empty-state") as HTMLElement | null;
-  if (tracks.length === 0) {
-    rows.forEach((row) => {
-      row.style.display = "none";
-    });
-    if (!emptyState && rowContainer) {
-      emptyState = doc.createElement("div");
-      emptyState.className = "tl-empty-state tl-library-empty-state";
-      emptyState.textContent = "音乐库还是空的，先去导入资源添加本地歌曲。";
-      rowContainer.appendChild(emptyState);
-    }
-    if (emptyState) emptyState.style.display = "";
-    return;
-  }
-  if (emptyState) emptyState.style.display = "none";
-  while (rowContainer && rows.length < tracks.length) {
-    const clone = rows[rows.length - 1].cloneNode(true) as HTMLElement;
-    clone.dataset.tlReady = "";
-    rowContainer.appendChild(clone);
-    rows = Array.from(doc.querySelectorAll(".glass-row")) as HTMLElement[];
-  }
-  rows.forEach((row, index) => {
-    const track = tracks[index];
-    if (!track) {
-      row.style.display = "none";
-      return;
-    }
-    row.style.display = "";
-    const isActive = track.id === activeTrack.id;
-    row.classList.toggle("active", isActive);
-    row.classList.remove("border-primary");
-    row.classList.toggle("tl-row-playing", isActive);
-    row.classList.remove("opacity-60");
-    row.dataset.trackId = track.id;
-    const cells = Array.from(row.children) as HTMLElement[];
-    const indexNode = cells[0];
-    if (indexNode) {
-      indexNode.textContent = String(index + 1);
-      indexNode.classList.add("text-center", "font-body-sm", "text-body-sm", "text-on-surface-variant");
-      indexNode.classList.remove("hidden", "group-hover:hidden");
-      indexNode.style.display = "";
-    }
-    const titleCell = cells.find((cell) => cell.querySelector(".font-body-lg, .text-body-lg"));
-    const titleIndex = titleCell ? cells.indexOf(titleCell) : 1;
-    if (titleIndex > 1) {
-      cells.slice(1, titleIndex).forEach((cell) => {
-        cell.classList.add("tl-stitch-hover-play");
-        cell.style.display = "none";
-      });
-    }
-    const titleNode = titleCell?.querySelector(".font-body-lg, .text-body-lg") as HTMLElement | null;
-    const artistNode = cells[titleIndex + 1];
-    const albumNode = cells[titleIndex + 2];
-    const addedNode = cells[titleIndex + 3];
-    const durationNode = cells[titleIndex + 4];
-    if (titleNode) {
-      titleNode.textContent = track.title;
-      titleNode.classList.toggle("text-primary", isActive);
-      titleNode.classList.remove("line-through", "decoration-on-surface-variant");
-    }
-    patchCoverPlayBadge(doc, titleCell ?? null, isActive && playing);
-    if (artistNode) artistNode.textContent = track.artist;
-    if (albumNode) albumNode.textContent = track.album;
-    if (addedNode) addedNode.textContent = track.added;
-    if (durationNode) {
-      const durationText = durationNode.querySelector(".group-hover\\:hidden") as HTMLElement | null;
-      if (durationText) {
-        durationText.textContent = track.durationLabel;
-      } else {
-        durationNode.textContent = track.durationLabel;
-      }
-    }
-    row.dataset.tlTrackId = track.id;
-    if (actions && row.dataset.tlReady !== "true") {
-      row.dataset.tlReady = "true";
-      row.classList.add("tl-clickable");
-      const playRow = (event: Event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        actions.playTrack(row.dataset.tlTrackId ?? track.id);
-      };
-      row.addEventListener("dblclick", playRow);
-      row.addEventListener("click", (event) => {
-        playRow(event);
-      });
-    }
-  });
-}
-
-function patchCoverPlayBadge(doc: Document, titleCell: HTMLElement | null, isPlayingTrack: boolean) {
-  if (!titleCell) return;
-  titleCell.style.position = "relative";
-  const cover = titleCell.querySelector("img, .w-10.h-10") as HTMLElement | null;
-  let badge = titleCell.querySelector(".tl-cover-play-badge") as HTMLElement | null;
-  if (!cover) {
-    badge?.remove();
-    return;
-  }
-
-  cover.classList.add("tl-cover-host");
-  if (!badge) {
-    badge = doc.createElement("span");
-    badge.className = "tl-cover-play-badge";
-    badge.innerHTML = `<span class="material-symbols-outlined"></span>`;
-    titleCell.appendChild(badge);
-  }
-  const icon = badge.querySelector(".material-symbols-outlined") as HTMLElement | null;
-  if (icon) icon.textContent = isPlayingTrack ? "pause" : "play_arrow";
-}
-
-function patchSecondaryTrackRows(
-  doc: Document,
-  tracks: Track[],
-  activeTrack: Track,
-  playing: boolean,
-  actions?: PatchActions,
-) {
-  const rows = Array.from(doc.querySelectorAll("main .space-y-1 > div.grid")) as HTMLElement[];
-  if (!rows.length || doc.querySelector(".glass-row")) return;
-  const container = rows[0]?.parentElement;
-  let emptyState = doc.querySelector(".tl-empty-state") as HTMLElement | null;
-  if (actions?.currentView === "recent" && tracks.length === 0) {
-    rows.forEach((row) => {
-      row.style.display = "none";
-    });
-    if (!emptyState && container) {
-      emptyState = doc.createElement("div");
-      emptyState.className = "tl-empty-state";
-      emptyState.textContent = "暂无最近播放，开始听歌后会自动记录最近 200 首。";
-      container.appendChild(emptyState);
-    }
-    if (emptyState) emptyState.style.display = "";
-    return;
-  }
-  if (emptyState) emptyState.style.display = "none";
-  while (container && rows.length < tracks.length) {
-    const clone = rows[rows.length - 1].cloneNode(true) as HTMLElement;
-    clone.dataset.tlReady = "";
-    container.appendChild(clone);
-    rows.push(clone);
-  }
-
-  rows.forEach((row, index) => {
-    const track = tracks[index];
-    if (!track) {
-      row.style.display = "none";
-      return;
-    }
-    row.style.display = "";
-    const isActive = track.id === activeTrack.id;
-    row.classList.toggle("tl-row-playing", isActive);
-    row.dataset.tlTrackId = track.id;
-
-    const cells = Array.from(row.children) as HTMLElement[];
-    const indexCell = cells[0];
-    if (indexCell) {
-      const indexText = (index + 1).toString().padStart(2, "0");
-      const directIndex = indexCell.querySelector("span") as HTMLElement | null;
-      if (directIndex) directIndex.textContent = indexText;
-      else indexCell.textContent = indexText;
-    }
-
-    const titleCell = cells.find((cell) => cell.querySelector("img") || cell.querySelector(".font-semibold")) ?? cells[1];
-    const titleNode = titleCell?.querySelector(".font-body-lg, .text-body-lg, .font-semibold") as HTMLElement | null;
-    const subTitleNode = titleCell?.querySelector(".text-xs") as HTMLElement | null;
-    const img = titleCell?.querySelector("img") as HTMLImageElement | null;
-    if (titleNode) titleNode.textContent = track.title;
-    if (subTitleNode) subTitleNode.textContent = track.artist;
-    if (img && track.lyricStyle.backgroundImage) img.src = track.lyricStyle.backgroundImage;
-
-    if (cells.length >= 7) {
-      if (cells[3]) cells[3].textContent = track.artist;
-      if (cells[4]) cells[4].textContent = track.album;
-      if (cells[5]) cells[5].textContent = track.added;
-      if (cells[6]) cells[6].textContent = track.durationLabel;
-    } else if (cells.length >= 5) {
-      if (cells[2]) cells[2].textContent = track.album;
-      if (cells[3]) cells[3].textContent = track.durationLabel;
-    }
-
-    if (actions && row.dataset.tlReady !== "true") {
-      row.dataset.tlReady = "true";
-      row.classList.add("tl-clickable");
-      row.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        actions.playTrack(row.dataset.tlTrackId ?? track.id);
-      });
-    }
-    patchCoverPlayBadge(doc, titleCell ?? null, isActive && playing);
-  });
-}
-
-function patchPlayer(
-  doc: Document,
-  activeTrack: Track,
-  playing: boolean,
-  currentTime: number,
-  volume: number,
-  actions?: PatchActions,
-) {
-  const footer = doc.querySelector("footer") as HTMLElement | null;
-  if (!footer) return;
-  const icon = Array.from(footer.querySelectorAll(".material-symbols-outlined")).find((element) =>
-    /pause|play_arrow/.test(textOf(element)),
+function SideNav({
+  currentView,
+  selectedPlaylist,
+  navigate,
+  navigatePlaylist,
+}: {
+  currentView: View;
+  selectedPlaylist: string;
+  navigate: (view: View) => void;
+  navigatePlaylist: (playlistName: string) => void;
+}) {
+  const items: Array<{ view: View; icon: string; label: string }> = [
+    { view: "main", icon: "library_music", label: "\u97f3\u4e50\u5e93" },
+    { view: "recent", icon: "history", label: "\u6700\u8fd1\u64ad\u653e" },
+    { view: "import", icon: "upload_file", label: "\u5bfc\u5165\u8d44\u6e90" },
+  ];
+  const playlists = [
+    { icon: "playlist_play", label: "\u6df1\u591c\u6c89\u6d78" },
+    { icon: "water_drop", label: "\u96e8\u5929\u6f2b\u6b65" },
+    { icon: "playlist_play", label: "\u5de5\u4f5c\u7535\u53f0" },
+  ];
+  return (
+    <aside className="side-nav">
+      <div className="brand-block">
+        <h1>{"\u97f3\u4e50"}</h1>
+        <p>Luminous Clarity</p>
+      </div>
+      <div className="side-scroll">
+        <nav className="nav-list">
+          {items.map((item) => (
+            <button key={item.view} className={`nav-item ${currentView === item.view ? "active" : ""}`} type="button" onClick={() => navigate(item.view)}>
+              <Icon>{item.icon}</Icon><span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="nav-section-title">{"\u6b4c\u5355"}</div>
+        <nav className="nav-list">
+          {playlists.map((item) => (
+            <button key={item.label} className={`nav-item ${currentView === "playlist" && selectedPlaylist === item.label ? "active" : ""}`} type="button" onClick={() => navigatePlaylist(item.label)}>
+              <Icon>{item.icon}</Icon><span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+      <div className="side-footer">
+        <button className="new-playlist" type="button"><Icon>add</Icon>{"\u65b0\u5efa\u6b4c\u5355"}</button>
+        <div className="side-tools">
+          <button type="button"><Icon>settings</Icon><span>{"\u8bbe\u7f6e"}</span></button>
+          <button type="button"><Icon>help</Icon><span>{"\u5e2e\u52a9"}</span></button>
+        </div>
+      </div>
+    </aside>
   );
-  if (icon) icon.textContent = playing ? "pause" : "play_arrow";
-
-  const title = footer.querySelector(".font-body-lg, .text-body-lg") as HTMLElement | null;
-  const subtitle = footer.querySelector(".text-on-surface-variant.text-xs, .text-body-sm") as HTMLElement | null;
-  if (title) title.textContent = activeTrack.title;
-  if (subtitle) subtitle.textContent = activeTrack.artist;
-
-  const timeNodes = Array.from(footer.querySelectorAll(".font-mono, .text-\\[10px\\]")) as HTMLElement[];
-  if (timeNodes[0]) timeNodes[0].textContent = formatDuration(currentTime);
-  if (timeNodes[1]) timeNodes[1].textContent = activeTrack.durationLabel;
-
-  patchProgressControl(footer, activeTrack, currentTime, actions);
-
-  patchVolumeControl(footer, volume, actions);
 }
 
-function patchProgressControl(
-  footer: HTMLElement,
-  activeTrack: Track,
-  currentTime: number,
-  actions?: PatchActions,
-) {
-  const timeNodes = Array.from(footer.querySelectorAll(".font-mono, .text-\\[10px\\]")) as HTMLElement[];
-  const track = timeNodes[0]?.nextElementSibling as HTMLElement | null;
-  const fill = track?.firstElementChild as HTMLElement | null;
-  const thumb = track?.children[1] as HTMLElement | null;
-  if (!track || !fill) return;
-
-  const duration = activeTrack.duration || 0;
-  const percent = duration ? Math.max(0, Math.min(100, (currentTime / duration) * 100)) : 0;
-  track.classList.add("tl-progress-track");
-  fill.classList.add("tl-progress-fill");
-  fill.style.width = `${percent}%`;
-  if (thumb) {
-    thumb.classList.add("tl-progress-thumb");
-    thumb.style.left = `${percent}%`;
-  }
-
-  if (actions) {
-    (track as HTMLElement & { __tlSeekTo?: (seconds: number) => void }).__tlSeekTo = actions.seekTo;
-    track.dataset.tlDuration = String(duration);
-  }
-  if (actions && track.dataset.tlProgressReady !== "true") {
-    track.dataset.tlProgressReady = "true";
-    const setFromClientX = (clientX: number) => {
-      const rect = track.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const nextPercent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      const seekTo = (track as HTMLElement & { __tlSeekTo?: (seconds: number) => void }).__tlSeekTo;
-      seekTo?.(nextPercent * (Number(track.dataset.tlDuration) || 0));
-    };
-    track.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      track.setPointerCapture(event.pointerId);
-      setFromClientX(event.clientX);
-    });
-    track.addEventListener("pointermove", (event) => {
-      if (event.buttons !== 1) return;
-      event.preventDefault();
-      setFromClientX(event.clientX);
-    });
-  }
+function TopBar({ view, selectedPlaylist, goBack, goForward }: { view: View; selectedPlaylist: string; goBack: () => void; goForward: () => void }) {
+  const title = view === "import" ? "\u8d44\u6e90\u5bfc\u5165" : view === "recent" ? "\u6700\u8fd1\u64ad\u653e" : view === "playlist" ? selectedPlaylist : "";
+  return (
+    <header className="top-bar">
+      <div className="top-left">
+        <button className="round-nav" type="button" onClick={goBack} aria-label={"\u8fd4\u56de"}><Icon>chevron_left</Icon></button>
+        <button className="round-nav" type="button" onClick={goForward} aria-label={"\u524d\u8fdb"}><Icon>chevron_right</Icon></button>
+        {title ? <h2>{title}</h2> : <label className="search-pill"><Icon>search</Icon><input placeholder={"\u641c\u7d22\u6b4c\u66f2\u3001\u6b4c\u624b\u6216\u4e13\u8f91..."} /></label>}
+      </div>
+      <div className="top-right">
+        {view === "import" && <div className="segmented-control"><button className="active" type="button">{"\u5bfc\u5165\u5411\u5bfc"}</button><button type="button">{"\u6279\u91cf\u5904\u7406"}</button></div>}
+        {view !== "import" && title && <label className="search-pill compact"><Icon>search</Icon><input placeholder={"\u641c\u7d22\u6b4c\u66f2\u3001\u827a\u4eba..."} /></label>}
+        <button type="button" aria-label={"\u8d26\u6237"}><Icon>account_circle</Icon></button>
+        <button type="button" aria-label={"\u901a\u77e5"}><Icon>notifications</Icon></button>
+      </div>
+    </header>
+  );
 }
 
-function patchVolumeControl(footer: HTMLElement, volume: number, actions?: PatchActions) {
-  const volumeIcon = Array.from(footer.querySelectorAll(".material-symbols-outlined")).find((element) =>
-    /volume_up|volume_down|volume_mute|volume_off/.test(textOf(element)),
-  ) as HTMLElement | undefined;
-  if (!volumeIcon) return;
-
-  const wrapper = volumeIcon.closest(".group") as HTMLElement | null;
-  const track = wrapper?.querySelector(".h-1") as HTMLElement | null;
-  const fill =
-    (track?.querySelector(".tl-volume-fill") as HTMLElement | null) ??
-    (track?.firstElementChild as HTMLElement | null);
-  if (!track || !fill) return;
-
-  const percent = Math.round(Math.max(0, Math.min(1, volume)) * 100);
-  track.classList.add("tl-volume-track");
-  fill.classList.add("tl-volume-fill");
-  fill.style.width = `${percent}%`;
-  volumeIcon.textContent = percent === 0 ? "volume_off" : percent < 45 ? "volume_down" : "volume_up";
-
-  let thumb = track.querySelector(".tl-volume-thumb") as HTMLElement | null;
-  if (!thumb) {
-    thumb = footer.ownerDocument.createElement("div");
-    thumb.className = "tl-volume-thumb";
-    track.appendChild(thumb);
-  }
-  thumb.style.left = `${percent}%`;
-
-  let bubble = track.querySelector(".tl-volume-bubble") as HTMLElement | null;
-  if (!bubble) {
-    bubble = footer.ownerDocument.createElement("div");
-    bubble.className = "tl-volume-bubble";
-    track.appendChild(bubble);
-  }
-  bubble.textContent = String(percent);
-  bubble.style.left = `${percent}%`;
-
-  if (actions && track.dataset.tlVolumeReady !== "true") {
-    track.dataset.tlVolumeReady = "true";
-    const setFromClientX = (clientX: number) => {
-      const rect = track.getBoundingClientRect();
-      actions.setVolume(Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)));
-    };
-    track.addEventListener("click", (event) => {
-      event.preventDefault();
-      setFromClientX(event.clientX);
-    });
-    track.addEventListener(
-      "wheel",
-      (event) => {
-        event.preventDefault();
-        const direction = event.deltaY > 0 ? -1 : 1;
-        const current = Number(track.dataset.tlVolume ?? volume);
-        actions.setVolume(Math.max(0, Math.min(1, current + direction * 0.05)));
-        flashVolumeBubble(track);
-      },
-      { passive: false },
-    );
-    track.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      track.classList.add("tl-volume-active");
-      track.setPointerCapture(event.pointerId);
-      setFromClientX(event.clientX);
-    });
-    track.addEventListener("pointermove", (event) => {
-      if (event.buttons !== 1) return;
-      event.preventDefault();
-      setFromClientX(event.clientX);
-    });
-    track.addEventListener("pointerup", () => {
-      window.setTimeout(() => track.classList.remove("tl-volume-active"), 450);
-    });
-    track.addEventListener("pointercancel", () => {
-      track.classList.remove("tl-volume-active");
-    });
-  }
-  track.dataset.tlVolume = String(volume);
+function TrackCover({ track, active, playing }: { track: Track; active: boolean; playing: boolean }) {
+  const hasImage = Boolean(track.lyricStyle.backgroundImage || track.id !== "placeholder");
+  return <div className="cover-box">{hasImage ? <img alt="Album" src={getCover(track)} /> : <Icon>music_note</Icon>}<span className="cover-badge"><Icon>{active && playing ? "pause" : "play_arrow"}</Icon></span></div>;
 }
 
-function flashVolumeBubble(track: HTMLElement) {
-  const win = track.ownerDocument.defaultView ?? window;
-  track.classList.add("tl-volume-active");
-  const previous = Number(track.dataset.tlVolumeTimer ?? 0);
-  if (previous) win.clearTimeout(previous);
-  const timer = win.setTimeout(() => track.classList.remove("tl-volume-active"), 700);
-  track.dataset.tlVolumeTimer = String(timer);
+function LibraryPage({ tracks, activeTrack, playing, playTrack, playAll }: { tracks: Track[]; activeTrack: Track; playing: boolean; playTrack: (trackId: string) => void; playAll: () => void }) {
+  const stats = getLibraryStats(tracks);
+  return (
+    <div className="page-inner library-page">
+      <section className="page-heading"><h2>{"\u97f3\u4e50\u5e93"}</h2><p><span>{stats.count}</span><span>•</span><span>{stats.duration}</span></p></section>
+      <div className="toolbar-row"><div className="button-row"><button className="primary-pill" type="button" onClick={playAll}>{"\u5168\u90e8\u64ad\u653e"}</button><button className="ghost-pill" type="button"><Icon>shuffle</Icon>{"\u968f\u673a"}</button></div><button className="icon-button" type="button" aria-label={"\u7b5b\u9009"}><Icon>filter_list</Icon></button></div>
+      <TrackTable tracks={tracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} emptyText={"\u97f3\u4e50\u5e93\u8fd8\u662f\u7a7a\u7684\uff0c\u5148\u53bb\u5bfc\u5165\u8d44\u6e90\u6dfb\u52a0\u672c\u5730\u6b4c\u66f2\u3002"} />
+      <div className="load-more-wrap"><button className="load-more" type="button">{"\u52a0\u8f7d\u66f4\u591a"}</button></div>
+    </div>
+  );
 }
 
-function patchResourceStatus(doc: Document, tracks: Track[]) {
+function TrackTable({ tracks, activeTrack, playing, playTrack, emptyText }: { tracks: Track[]; activeTrack: Track; playing: boolean; playTrack: (trackId: string) => void; emptyText: string }) {
+  return (
+    <div className="glass-panel track-table">
+      <div className="track-header"><div>{"\u6807\u9898"}</div><div>{"\u6b4c\u624b"}</div><div>{"\u4e13\u8f91"}</div><div>{"\u6dfb\u52a0\u65f6\u95f4"}</div><div><Icon>schedule</Icon></div></div>
+      <div className="track-body">
+        {!tracks.length && <div className="empty-state">{emptyText}</div>}
+        {tracks.map((track) => {
+          const active = track.id === activeTrack.id;
+          return <button className={`track-row ${active ? "active" : ""}`} key={track.id} type="button" onClick={() => playTrack(track.id)}><div className="track-title-cell"><TrackCover track={track} active={active} playing={playing} /><span className={active ? "accent-text" : ""}>{track.title}</span></div><div>{track.artist}</div><div>{track.album}</div><div className="center-cell">{track.added || "\u521a\u521a"}</div><div className="right-cell">{track.durationLabel}</div></button>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RecentPage({ tracks, activeTrack, playing, playTrack }: { tracks: Track[]; activeTrack: Track; playing: boolean; playTrack: (trackId: string) => void }) {
+  return <div className="page-inner recent-page"><div className="recent-table-head"><span>{"\u6b4c\u66f2\u6807\u9898"}</span><span>{"\u827a\u4eba"}</span><span>{"\u4e13\u8f91"}</span><span>{"\u64ad\u653e\u4e8e"}</span><span>{"\u65f6\u957f"}</span></div><div className="recent-list">{!tracks.length && <div className="empty-state">{"\u6682\u65e0\u6700\u8fd1\u64ad\u653e\uff0c\u5f00\u59cb\u542c\u6b4c\u540e\u4f1a\u81ea\u52a8\u8bb0\u5f55\u6700\u8fd1 200 \u9996\u3002"}</div>}{tracks.map((track) => { const active = track.id === activeTrack.id; return <button className={`recent-row ${active ? "active" : ""}`} type="button" key={track.id} onClick={() => playTrack(track.id)}><span className="recent-title"><TrackCover track={track} active={active} playing={playing} />{track.title}</span><span>{track.artist}</span><span>{track.album}</span><span>{"\u521a\u521a"}</span><span>{track.durationLabel}</span></button>; })}</div></div>;
+}
+
+function ImportPage({ tracks, matchingLyrics, importAudio, importFolder, importLrc, importImage, matchAllLyrics, retryActiveLyrics }: { tracks: Track[]; matchingLyrics: boolean; importAudio: () => void; importFolder: () => void; importLrc: () => void; importImage: () => void; matchAllLyrics: () => void; retryActiveLyrics: () => void }) {
   const localTracks = tracks.filter((track) => !track.id.startsWith("demo-"));
   const matchedCount = localTracks.filter((track) => track.lyrics?.status === "matched").length;
-  const banner = doc.getElementById("successBanner") as HTMLElement | null;
-  const label = banner?.querySelector(".font-body-sm, .text-body-sm") as HTMLElement | null;
-  if (banner) banner.style.display = localTracks.length ? "" : "none";
-  if (label) label.textContent = `已导入 ${localTracks.length} 首本地歌曲，${matchedCount} 首已匹配歌词`;
+  return <div className="page-inner import-page">{localTracks.length > 0 && <div className="success-banner"><Icon>check_circle</Icon><span>{"\u5df2\u5bfc\u5165 "}{localTracks.length}{" \u9996\u672c\u5730\u6b4c\u66f2\uff0c"}{matchedCount}{" \u9996\u5df2\u5339\u914d\u6b4c\u8bcd"}</span></div>}<div className="import-grid"><ImportCard icon="library_add" title={"\u5bfc\u5165\u672c\u5730\u6b4c\u66f2"} description={"\u9009\u62e9\u5355\u9996\u6b4c\u66f2\uff0c\u6216\u626b\u63cf\u6574\u4e2a\u97f3\u4e50\u6587\u4ef6\u5939\u3002"} body={"\u5bfc\u5165\u540e\u81ea\u52a8\u5c1d\u8bd5\u5339\u914d\u6b4c\u8bcd"} actions={[{ label: "\u9009\u62e9\u6b4c\u66f2\u6587\u4ef6", onClick: importAudio }, { label: "\u9009\u62e9\u97f3\u4e50\u6587\u4ef6\u5939", onClick: importFolder }]} /><ImportCard icon="lyrics" title={"\u6b4c\u8bcd\u8865\u5168"} description={"\u652f\u6301 LRC \u5bfc\u5165\uff0c\u4e5f\u53ef\u6279\u91cf\u5728\u7ebf\u5339\u914d\u672c\u5730\u6b4c\u66f2\u3002"} body={matchingLyrics ? "\u6b63\u5728\u5339\u914d\u6b4c\u8bcd..." : "\u4f18\u5148\u4fdd\u5b58\u540c\u6b65\u6b4c\u8bcd"} actions={[{ label: "\u6279\u91cf\u8865\u5168\u6b4c\u8bcd", onClick: matchAllLyrics }, { label: "\u5bfc\u5165 LRC \u6587\u4ef6", onClick: importLrc }]} /><ImportCard icon="wallpaper" title={"\u4e0a\u4f20\u58c1\u7eb8"} description={"\u4e3a\u6b4c\u8bcd\u9875\u9762\u8bbe\u7f6e\u4e13\u5c5e\u80cc\u666f\u56fe\u3002"} body={"\u652f\u6301 JPG\u3001PNG \u7b49\u56fe\u7247"} actions={[{ label: "\u9009\u62e9\u56fe\u7247", onClick: importImage }]} /><ImportCard icon="image" title={"\u5173\u8054\u5c01\u9762\u56fe"} description={"\u4e3a\u5f53\u524d\u6b4c\u66f2\u8865\u5145\u5c01\u9762\uff0c\u540e\u7eed\u4f1a\u652f\u6301\u81ea\u52a8\u8865\u5168\u3002"} body={"\u5f53\u524d\u7248\u672c\u5148\u624b\u52a8\u9009\u62e9\u56fe\u7247"} actions={[{ label: "\u9009\u62e9\u5c01\u9762\u56fe", onClick: importImage }]} /></div><section className="resource-section"><div className="section-title-row"><h3>{"\u5df2\u5bfc\u5165\u8d44\u6e90"}</h3><label>{"\u663e\u793a:"}<select><option>{"\u5168\u90e8"}</option></select></label></div><div className="glass-panel resource-table"><div className="resource-head"><span>{"\u6b4c\u66f2\u540d\u79f0"}</span><span>{"\u683c\u5f0f"}</span><span>{"\u6b4c\u8bcd\u72b6\u6001"}</span><span>{"\u80cc\u666f\u72b6\u6001"}</span><span>{"\u5c01\u9762"}</span><span>{"\u64cd\u4f5c"}</span></div>{!localTracks.length && <div className="empty-state">{"\u8fd8\u6ca1\u6709\u5bfc\u5165\u8d44\u6e90\u3002"}</div>}{localTracks.map((track) => <div className="resource-row" key={track.id}><span className="resource-title"><span className="note-square"><Icon>music_note</Icon></span><span><b>{track.title}</b><small>{track.artist}</small></span></span><span>{track.format}</span><span className={track.lyrics?.status === "matched" ? "ok-text" : ""}>{lyricStatusLabel(track.lyrics?.status)}</span><span className="ok-text"><Icon>check_circle</Icon></span><span><TrackCover track={track} active={false} playing={false} /></span><button type="button" onClick={retryActiveLyrics}>{track.lyrics?.status === "matched" ? "\u91cd\u65b0\u5339\u914d" : "\u5339\u914d\u6b4c\u8bcd"}</button></div>)}</div></section></div>;
 }
 
-function patchImportedResources(doc: Document, tracks: Track[], actions?: PatchActions) {
-  let rows = Array.from(doc.querySelectorAll("tbody tr")) as HTMLTableRowElement[];
-  if (!rows.length) return;
-  const localTracks = tracks.filter((track) => !track.id.startsWith("demo-"));
-  const tbody = rows[0]?.parentElement;
-  while (tbody && rows.length < localTracks.length) {
-    const clone = rows[rows.length - 1].cloneNode(true) as HTMLTableRowElement;
-    tbody.appendChild(clone);
-    rows = Array.from(doc.querySelectorAll("tbody tr")) as HTMLTableRowElement[];
-  }
-  rows.forEach((row, index) => {
-    const track = localTracks[index];
-    if (!track) {
-      row.style.display = "none";
-      return;
-    }
-    row.style.display = "";
-    const cells = Array.from(row.children) as HTMLElement[];
-    const titleNode = cells[0]?.querySelector(".text-on-surface.font-medium, .font-medium") as HTMLElement | null;
-    const artistNode = cells[0]?.querySelector(".text-on-surface-variant.text-xs") as HTMLElement | null;
-    if (titleNode) titleNode.textContent = track.title;
-    if (artistNode) artistNode.textContent = track.artist;
-    if (cells[1]) cells[1].textContent = track.format;
-    if (cells[2]) {
-      cells[2].textContent = lyricStatusLabel(track.lyrics?.status);
-      cells[2].style.color =
-        track.lyrics?.status === "matched" ? "#67f37f" : track.lyrics?.status === "failed" ? "#ffb4ab" : "#bdc8cf";
-    }
-    if (cells[5] && actions) {
-      cells[5].innerHTML = "";
-      const button = doc.createElement("button");
-      button.type = "button";
-      button.className = "text-on-surface-variant hover:text-primary transition-colors";
-      button.textContent = track.lyrics?.status === "matched" ? "重新匹配" : "匹配歌词";
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        actions.retryActiveLyrics();
-      });
-      cells[5].appendChild(button);
-    }
-  });
+function ImportCard({ icon, title, description, body, actions }: { icon: string; title: string; description: string; body: string; actions: Array<{ label: string; onClick: () => void }> }) {
+  return <div className="glass-card import-card"><div className="card-title"><Icon>{icon}</Icon><h2>{title}</h2></div><p>{description}</p><div className="drop-zone"><Icon>{icon === "library_add" ? "library_music" : icon === "lyrics" ? "subtitles" : "add_photo_alternate"}</Icon><span>{body}</span><div className="card-actions">{actions.map((action) => <button key={action.label} type="button" onClick={action.onClick}>{action.label}</button>)}</div></div></div>;
 }
 
-function injectLyricsPanelControls(doc: Document) {
-  const panel = doc.querySelector("aside") as HTMLElement | null;
-  if (!panel) return;
-  panel.classList.add("tl-style-panel");
-  if (!doc.querySelector(".tl-style-toggle")) {
-    const toggle = doc.createElement("button");
-    toggle.type = "button";
-    toggle.className = "tl-style-toggle";
-    toggle.setAttribute("aria-label", "显示或隐藏歌词样式设置");
-    toggle.innerHTML = `<span class="material-symbols-outlined">tune</span>`;
-    toggle.addEventListener("click", () => doc.body.classList.toggle("tl-style-hidden"));
-    doc.body.appendChild(toggle);
-  }
-  Array.from(doc.querySelectorAll("button")).forEach((button) => {
-    if (textOf(button) === "tune" && button.dataset.tlToggleReady !== "true") {
-      button.dataset.tlToggleReady = "true";
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        doc.body.classList.toggle("tl-style-hidden");
-      });
-    }
-  });
+function PlaylistPage({ playlistName, tracks, activeTrack, playing, playTrack }: { playlistName: string; tracks: Track[]; activeTrack: Track; playing: boolean; playTrack: (trackId: string) => void }) {
+  const descriptions: Record<string, string> = {
+    "\u6df1\u591c\u6c89\u6d78": "\u5728\u9759\u8c27\u7684\u591c\u665a\uff0c\u8ba9\u8f7b\u76c8\u7684\u65cb\u5f8b\u5e26\u4f60\u8fdb\u5165\u6df1\u5c42\u51a5\u60f3\u3002",
+    "\u96e8\u5929\u6f2b\u6b65": "\u9002\u5408\u96e8\u58f0\u548c\u57ce\u5e02\u706f\u5f71\u7684\u6162\u901f\u6b4c\u5355\u3002",
+    "\u5de5\u4f5c\u7535\u53f0": "\u8282\u594f\u7a33\u5b9a\uff0c\u9002\u5408\u6574\u7406\u601d\u8def\u548c\u4e13\u6ce8\u5de5\u4f5c\u3002",
+  };
+  return <div className="page-inner playlist-page"><section className="playlist-hero"><Icon>play_circle</Icon><span>EXCLUSIVE PLAYLIST</span><h2>{playlistName}</h2><p>{descriptions[playlistName] ?? descriptions["\u6df1\u591c\u6c89\u6d78"]}</p></section><TrackTable tracks={tracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} emptyText={"\u6b4c\u5355\u8fd8\u6ca1\u6709\u6b4c\u66f2\uff0c\u5148\u4ece\u97f3\u4e50\u5e93\u6dfb\u52a0\u3002"} /></div>;
 }
 
-function patchLyricsPage(doc: Document, activeTrack: Track, currentTime: number, actions?: PatchActions) {
-  const activeLyric = doc.querySelector(".font-lyrics-active") as HTMLElement | null;
-  if (!activeLyric) return;
+function LyricsPage({ activeTrack, currentTime }: { activeTrack: Track; currentTime: number }) {
   const lyricWindow = getLyricWindow(activeTrack, currentTime);
-  const inactiveLyrics = Array.from(doc.querySelectorAll(".font-lyrics-inactive")) as HTMLElement[];
-  const previous = lyricWindow.previous.slice(-2);
-  const next = lyricWindow.next.slice(0, 2);
-  if (inactiveLyrics[0] && previous[0]) inactiveLyrics[0].textContent = previous[0];
-  if (inactiveLyrics[1] && previous[1]) inactiveLyrics[1].textContent = previous[1];
-  if (inactiveLyrics[2] && next[0]) inactiveLyrics[2].textContent = next[0];
-  if (inactiveLyrics[3] && next[1]) inactiveLyrics[3].textContent = next[1];
-  activeLyric.textContent = lyricWindow.active || activeTrack.title;
-  const style = activeTrack.lyricStyle;
-  activeLyric.style.fontSize = `${style.fontSize}px`;
-  activeLyric.style.opacity = `${style.opacity}`;
-  activeLyric.style.color = style.color;
-  activeLyric.style.textShadow = `0 0 ${style.glow}px ${style.color}`;
-  activeLyric.style.transform = `perspective(${style.perspective}px) rotateX(${style.rotateX}deg) rotateY(${style.rotateY}deg) rotateZ(${style.rotateZ}deg) skew(${style.skewX}deg, ${style.skewY}deg) scale(${style.scale})`;
-  if (style.backgroundImage) {
-    const bg = doc.querySelector(".absolute.inset-0.z-0") as HTMLElement | null;
-    if (bg) {
-      bg.style.backgroundImage = `url(${style.backgroundImage})`;
-      bg.style.backgroundSize = "cover";
-      bg.style.backgroundPosition = "center";
-      bg.style.filter = "blur(8px) brightness(.72)";
-      bg.style.transform = "scale(1.04)";
-    }
-  }
-  if (actions) wireLyricsControls(doc);
+  return <div className="lyrics-page-native" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.78)), url(${getCover(activeTrack)})` }}><div className="lyric-stack">{lyricWindow.previous.map((line) => <p key={line}>{line}</p>)}<h2 style={{ color: activeTrack.lyricStyle.color, fontSize: activeTrack.lyricStyle.fontSize }}>{lyricWindow.active}</h2>{lyricWindow.next.map((line) => <p key={line}>{line}</p>)}</div></div>;
 }
 
-function wireLyricsControls(doc: Document) {
-  const activeLyric = doc.querySelector(".font-lyrics-active") as HTMLElement | null;
-  if (!activeLyric) return;
-  const sliders = Array.from(doc.querySelectorAll("input[type='range']")) as HTMLInputElement[];
-  sliders.forEach((slider, index) => {
-    if (slider.dataset.tlReady === "true") return;
-    slider.dataset.tlReady = "true";
-    slider.addEventListener("input", () => {
-      const value = Number(slider.value);
-      if (index === 0) activeLyric.style.fontSize = `${value}px`;
-      if (index === 1) activeLyric.style.opacity = `${Math.max(0.2, value / 100)}`;
-      if (index === 2) activeLyric.style.transform = `rotate(${value}deg)`;
-      if (index === 3) activeLyric.style.scale = `${value / 100}`;
-    });
-  });
+function MiniPage({ activeTrack }: { activeTrack: Track }) {
+  return <div className="page-inner mini-queue"><div className="empty-state">{"\u64ad\u653e\u5217\u8868\u9884\u89c8\uff1a"}{activeTrack.title}</div></div>;
+}
+
+function PlayerBar({
+  activeTrack,
+  playing,
+  currentTime,
+  volume,
+  setVolume,
+  playRelative,
+  togglePlayback,
+  seekTo,
+  navigate,
+}: {
+  activeTrack: Track;
+  playing: boolean;
+  currentTime: number;
+  volume: number;
+  setVolume: (volume: number) => void;
+  playRelative: (offset: number) => void;
+  togglePlayback: () => void;
+  seekTo: (seconds: number) => void;
+  navigate: (view: View) => void;
+}) {
+  const progress = activeTrack.duration ? Math.min(100, (currentTime / activeTrack.duration) * 100) : 0;
+  const updateFromPointer = (event: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    seekTo(percent * activeTrack.duration);
+  };
+  return (
+    <footer className="player-bar">
+      <div className="now-playing">
+        <div className="now-cover"><img alt="Now Playing" src={getCover(activeTrack)} /></div>
+        <div><b>{activeTrack.title}</b><span>{activeTrack.artist}</span></div>
+        <button type="button" className="favorite"><Icon>favorite</Icon></button>
+      </div>
+      <div className="player-center">
+        <div className="player-buttons">
+          <button type="button"><Icon>shuffle</Icon></button>
+          <button type="button" onClick={() => playRelative(-1)}><Icon>skip_previous</Icon></button>
+          <button className="play-main" type="button" onClick={togglePlayback} aria-label={playing ? "\u6682\u505c" : "\u64ad\u653e"}><Icon>{playing ? "pause" : "play_arrow"}</Icon></button>
+          <button type="button" onClick={() => playRelative(1)}><Icon>skip_next</Icon></button>
+          <button type="button"><Icon>repeat</Icon></button>
+        </div>
+        <div className="progress-line">
+          <span>{formatDuration(currentTime)}</span>
+          <div className="progress-track" onPointerDown={updateFromPointer} onClick={updateFromPointer}>
+            <div className="progress-fill" style={{ width: `${progress}%` }} />
+            <div className="progress-thumb" style={{ left: `${progress}%` }} />
+          </div>
+          <span>{activeTrack.durationLabel}</span>
+        </div>
+      </div>
+      <div className="player-actions">
+        <button type="button" onClick={() => navigate("lyrics")} aria-label={"\u6b4c\u8bcd"}><Icon>lyrics</Icon></button>
+        <button type="button" onClick={() => navigate("mini")} aria-label={"\u64ad\u653e\u5217\u8868"}><Icon>queue_music</Icon></button>
+        <div className="volume-control" onWheel={(event) => {
+          event.preventDefault();
+          setVolume(Math.max(0, Math.min(1, volume + (event.deltaY < 0 ? 0.04 : -0.04))));
+        }}>
+          <Icon>volume_up</Icon>
+          <input type="range" min={0} max={100} value={Math.round(volume * 100)} onChange={(event) => setVolume(Number(event.currentTarget.value) / 100)} />
+          <span>{Math.round(volume * 100)}</span>
+        </div>
+        <button type="button" aria-label={"\u5168\u5c4f"}><Icon>fullscreen</Icon></button>
+      </div>
+    </footer>
+  );
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
