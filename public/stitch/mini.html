@@ -1,0 +1,355 @@
+<!DOCTYPE html><html class="dark" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Transparent Lyrics - 迷你窗口与样式预设</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "background": "#131313",
+                    "on-error": "#690005",
+                    "primary": "#a7e0ff",
+                    "tertiary": "#67f37f",
+                    "on-tertiary-fixed-variant": "#00531c",
+                    "on-error-container": "#ffdad6",
+                    "on-surface": "#e5e2e1",
+                    "on-secondary-fixed-variant": "#920027",
+                    "surface-tint": "#74d1ff",
+                    "outline": "#889299",
+                    "tertiary-container": "#47d666",
+                    "tertiary-fixed-dim": "#53e16f",
+                    "surface-dim": "#131313",
+                    "on-primary-fixed": "#001e2b",
+                    "on-secondary-container": "#fff1f1",
+                    "secondary-fixed-dim": "#ffb3b5",
+                    "on-primary-fixed-variant": "#004d67",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-background": "#e5e2e1",
+                    "on-secondary-fixed": "#40000c",
+                    "on-surface-variant": "#bdc8cf",
+                    "surface-variant": "#353534",
+                    "primary-fixed-dim": "#74d1ff",
+                    "on-tertiary-container": "#00581f",
+                    "surface-container-low": "#1c1b1b",
+                    "error-container": "#93000a",
+                    "secondary-fixed": "#ffdada",
+                    "on-primary-container": "#00526e",
+                    "secondary-container": "#de0541",
+                    "inverse-surface": "#e5e2e1",
+                    "primary-container": "#5ac8fa",
+                    "secondary": "#ffb3b5",
+                    "surface-container-highest": "#353534",
+                    "on-primary": "#003548",
+                    "surface": "#131313",
+                    "primary-fixed": "#c1e8ff",
+                    "tertiary-fixed": "#72fe88",
+                    "surface-container-high": "#2a2a2a",
+                    "on-tertiary": "#003911",
+                    "surface-container": "#201f1f",
+                    "on-secondary": "#680019",
+                    "inverse-primary": "#006687",
+                    "error": "#ffb4ab",
+                    "inverse-on-surface": "#313030",
+                    "surface-bright": "#393939",
+                    "outline-variant": "#3e484e",
+                    "on-tertiary-fixed": "#002107"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "player-padding": "24px",
+                    "gutter": "16px",
+                    "unit": "4px",
+                    "margin-desktop": "32px"
+            },
+            "fontFamily": {
+                    "lyrics-active": [
+                            "Plus Jakarta Sans"
+                    ],
+                    "body-lg": [
+                            "Inter"
+                    ],
+                    "label-caps": [
+                            "Inter"
+                    ],
+                    "headline-xl": [
+                            "Plus Jakarta Sans"
+                    ],
+                    "body-sm": [
+                            "Inter"
+                    ],
+                    "headline-md": [
+                            "Plus Jakarta Sans"
+                    ],
+                    "lyrics-inactive": [
+                            "Plus Jakarta Sans"
+                    ]
+            },
+            "fontSize": {
+                    "lyrics-active": [
+                            "48px",
+                            {
+                                    "lineHeight": "64px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-lg": [
+                            "16px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "label-caps": [
+                            "12px",
+                            {
+                                    "lineHeight": "16px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "headline-xl": [
+                            "32px",
+                            {
+                                    "lineHeight": "40px",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-sm": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-md": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "lyrics-inactive": [
+                            "24px",
+                            {
+                                    "lineHeight": "36px",
+                                    "letterSpacing": "0em",
+                                    "fontWeight": "500"
+                            }
+                    ]
+            }
+          },
+        },
+      }
+    </script>
+<style>body {
+    background-image: url(https://lh3.googleusercontent.com/aida/AP1WRLtrWbCH2DIYXJAcjCUg2uNhbchJeGFttLpcl4J0-yzpEGo_EF2ugAeoCyfJXxCcB9Qi2NpHhaym4F5s3pGg_nlbrcOwy5iO-QQeQit-OJa8R0Upwsm72xNvfQjl8qGWfcjv_Rd-XljzU97kXQME0ioX57CK2JLzT-pE1X5DynhGnedrtyQcN_p2GR2L8Wnv1Q2eP1QTTsW_QFQYMEC8Z2SukOaNZZeGV2o7kM0epeG4kW9tY2oTEn_H7Oc);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    min-height: 100vh
+    }
+.glass-panel {
+    background-color: rgba(19, 19, 19, 0.4);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 0.5px solid rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1)
+    }
+.glass-mini {
+    background-color: transparent;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 32px rgba(0, 0, 0, 0.3)
+    }
+.glass-button {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease
+    }
+.glass-button:hover {
+    background-color: rgba(255, 255, 255, 0.15)
+    }
+.glass-button-primary {
+    background-color: rgba(167, 224, 255, 0.8);
+    border: 0.5px solid rgba(255, 255, 255, 0.2);
+    color: #003548;
+    transition: all 0.2s ease
+    }
+.glass-button-primary:hover {
+    background-color: rgba(167, 224, 255, 1)
+    }
+/* Hover reveal group */
+.group:hover .reveal-on-hover {
+    opacity: 1;
+    transform: translatey(0)
+    }
+.reveal-on-hover {
+    opacity: 0;
+    transform: translatey(-4px);
+    transition: all 0.3s ease
+    }
+/* Lyrics Animation Simulation */
+.lyric-active {
+    transform: scale(1.05);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    text-shadow: 0 0 20px rgba(167, 224, 255, 0.5)
+    }
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}</style>
+</head>
+<body class="text-on-surface antialiased flex items-center justify-center relative overflow-hidden">
+<!-- Mini Window Float -->
+<div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[160px] glass-mini rounded-xl group flex flex-col justify-center items-center cursor-move p-6 z-10">
+<!-- Hover Controls -->
+<div class="absolute top-3 right-4 flex space-x-2 reveal-on-hover">
+<button class="w-8 h-8 rounded-full glass-button flex items-center justify-center text-on-surface hover:text-primary transition-colors" title="音乐库">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 0;">library_music</span>
+</button>
+<button class="w-8 h-8 rounded-full glass-button flex items-center justify-center text-on-surface hover:text-primary transition-colors" title="最近播放">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 0;">history</span>
+</button>
+<button class="w-8 h-8 rounded-full glass-button flex items-center justify-center text-on-surface hover:text-primary transition-colors" onclick="toggleSettings()" title="设置">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 0;">settings</span>
+</button>
+<button class="w-8 h-8 rounded-full glass-button flex items-center justify-center text-on-surface hover:text-error transition-colors" title="关闭">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 0;">close</span>
+</button>
+</div>
+<!-- Lyrics Content -->
+<div class="text-center w-full space-y-2 pointer-events-none">
+<div class="font-lyrics-inactive text-lyrics-inactive text-on-surface-variant line-clamp-1 opacity-60">
+                Luminous Clarity in the dark
+            </div>
+<div class="font-headline-xl text-headline-xl text-primary lyric-active line-clamp-1 font-bold">
+                透明的歌词在发光
+            </div>
+</div>
+</div>
+<!-- Settings Overlay Panel -->
+<div class="fixed inset-y-0 right-0 w-[480px] glass-panel z-50 transform translate-x-full transition-transform duration-500 ease-out flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.4)]" id="settingsPanel">
+<!-- Panel Header -->
+<div class="h-20 flex items-center justify-between px-8 border-b border-white/10">
+<div>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">样式预设</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Luminous Clarity 专属视觉体验</p>
+</div>
+<button class="w-10 h-10 rounded-full glass-button flex items-center justify-center text-on-surface hover:text-error transition-colors" onclick="toggleSettings()">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">close</span>
+</button>
+</div>
+<!-- Panel Content -->
+<div class="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
+<!-- Navigation Links Consistency -->
+<div class="flex gap-4 mb-2">
+<button class="flex items-center gap-2 px-4 py-2 rounded-full glass-button text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">library_music</span>
+<span class="font-label-caps text-label-caps">音乐库</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 rounded-full glass-button text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">history</span>
+<span class="font-label-caps text-label-caps">最近播放</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-6">
+<!-- Preset Card 1: 极简 -->
+<div class="group/card relative rounded-xl overflow-hidden glass-panel border border-primary/30 p-1 flex flex-col">
+<div class="h-32 w-full rounded-lg overflow-hidden relative mb-4">
+<img alt="Minimalist gray abstract background with soft lighting, creating a clean, modern aesthetic." class="w-full h-full object-cover opacity-80 group-hover/card:scale-105 transition-transform duration-500" data-alt="A clean, minimalist gray abstract background featuring soft, diffused lighting. The design is modern, subtle, and elegant, serving as a perfect backdrop for Luminous Clarity's minimalist lyric preset. The mood is calm and focused." src="https://lh3.googleusercontent.com/aida/AP1WRLsws88kS3kC9nic6tgZnAbMzbXjOlClJt9T03P8ArXROuoyHlh23LLW97-6uK8TqgL6wJwwr5BxGdqsLFwxEdC7F_YuctM1yeMLxpWAxdaAJ6iqbEIvF1YFXJOx9XQ7T5r4m7G2l9uiaks2k7uk13wfE0mqw5t2oLBVnShCwq4EfWXhvGOn96JmmeyhGr-ZrB02IC9OpJ9VfXqxgTWZEmPDRds5L68pDNCOJqY3o66yIIVjcaLwV81GnHTK">
+<div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end p-3">
+<span class="font-headline-md text-headline-md text-white font-bold">极简透明</span>
+</div>
+<div class="absolute top-2 right-2 bg-primary text-on-primary font-label-caps text-label-caps px-2 py-1 rounded">当前</div>
+</div>
+<div class="px-3 pb-3 flex justify-between items-center mt-auto">
+<span class="font-body-sm text-body-sm text-on-surface-variant">经典磨砂质感</span>
+<button class="glass-button-primary px-4 py-1.5 rounded-full font-label-caps text-label-caps">已应用</button>
+</div>
+</div>
+<!-- Preset Card 2: 霓虹 -->
+<div class="group/card relative rounded-xl overflow-hidden glass-panel hover:border-white/30 transition-colors p-1 flex flex-col">
+<div class="h-32 w-full rounded-lg overflow-hidden relative mb-4">
+<img alt="Vibrant neon lights reflecting on dark wet surfaces, cyberpunk style." class="w-full h-full object-cover opacity-60 group-hover/card:scale-105 transition-transform duration-500" data-alt="Vibrant neon lights reflecting on dark, wet urban surfaces in a cyberpunk style. Bright pinks and blues create a dynamic, energetic atmosphere suitable for an intense lyric visualizer preset. The lighting is harsh but colorful." src="https://lh3.googleusercontent.com/aida/AP1WRLv1K-aOJ549uGH33L4kM4vWfLMmk1s902BhC3axLLsvdO8x336hd7mQR4_wlS-gXmn_iWwVY2lmWDzPxk6C8tSgzfTH9E49pq_BrnSXTFqbicaX31tE457Rhyr59Y8WWaDEiCsDOjelftYAl9Zxgyy3DghL6fLXXXC2EpPB8hEmzuB9fRhgAlUzpS5Rh80QENU8mg4hbYJf4X4ui6cvu2tf3q8Fo_aKkKKjsB-jJQnjDmOoV6XOQi9bRL_d">
+<div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end p-3">
+<span class="font-headline-md text-headline-md text-white font-bold">赛博霓虹</span>
+</div>
+</div>
+<div class="px-3 pb-3 flex justify-between items-center mt-auto">
+<span class="font-body-sm text-body-sm text-on-surface-variant">高对比发光字</span>
+<button class="glass-button px-4 py-1.5 rounded-full font-label-caps text-label-caps hover:bg-white/10 text-on-surface">应用</button>
+</div>
+</div>
+<!-- Preset Card 3: 电影 -->
+<div class="group/card relative rounded-xl overflow-hidden glass-panel hover:border-white/30 transition-colors p-1 flex flex-col">
+<div class="h-32 w-full rounded-lg overflow-hidden relative mb-4">
+<img alt="Cinematic dark moody lighting over subtle textures, dramatic shadows." class="w-full h-full object-cover opacity-60 group-hover/card:scale-105 transition-transform duration-500" data-alt="Cinematic dark moody lighting cascading over subtle, refined textures, casting dramatic shadows. The aesthetic is deep, rich, and dramatic, perfect for a cinematic lyric presentation. The color palette relies on deep blacks and warm amber highlights." src="https://lh3.googleusercontent.com/aida/AP1WRLs3_iYMkg7-SxlO5GKNcyJaW8f83SZ64-xKV9UPGxQx8smMh2v0_y-o7JaaB16lW4ieeFNLpoUGDdgQMvSL-PHgm6e1-SEBXV4vIfUNrf8lPyXgjHqvwHOijjQSxHkjV2xo-XEgOXXGPYYfxATBCCrMNwu4-sguLFVIEW3XCxCF3Un3sf6ZRmOzIpKRFGIzwi2Jq4xr1IQCU2Bda0qOObYXnAckiIWwe8Uvlen-uHXbQlTo7HiUp2JQMh_V">
+<div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end p-3">
+<span class="font-headline-md text-headline-md text-white font-bold">电影画幅</span>
+</div>
+</div>
+<div class="px-3 pb-3 flex justify-between items-center mt-auto">
+<span class="font-body-sm text-body-sm text-on-surface-variant">宽屏遮幅效果</span>
+<button class="glass-button px-4 py-1.5 rounded-full font-label-caps text-label-caps hover:bg-white/10 text-on-surface">应用</button>
+</div>
+</div>
+<!-- Preset Card 4: 动漫 -->
+<div class="group/card relative rounded-xl overflow-hidden glass-panel hover:border-white/30 transition-colors p-1 flex flex-col">
+<div class="h-32 w-full rounded-lg overflow-hidden relative mb-4">
+<img alt="Bright colorful anime style sky with fluffy clouds." class="w-full h-full object-cover opacity-60 group-hover/card:scale-105 transition-transform duration-500" data-alt="A bright, colorful sky filled with fluffy, stylized clouds reminiscent of classic anime backgrounds. The palette is dominated by vivid blues and soft whites, creating a cheerful, energetic, and optimistic mood for the lyrics window." src="https://lh3.googleusercontent.com/aida/AP1WRLvgbIsWIbV6zuCQw53byVgkz4encaRRMNJfgHJ-NYPwSiOW52gf9RdWuxbKX5L5zIJYwHB8cKzXXxfOP1YNcxUa2TPWQcJgU7rWqZns7ba86t8Z8bDTpP6s6FNWI0k1vFLJ7ea--R8DY4i2SkocgwpojgQsPnPxdazQ-eJKin-y5FUEw5pz12tJy-UI5GYODBv_HD1MLUSJgAbMU6BODFaYfAsyYDR3_c4EPnWxBIdYEoeDY-UkOQkUc2sf">
+<div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end p-3">
+<span class="font-headline-md text-headline-md text-white font-bold">二次元风</span>
+</div>
+</div>
+<div class="px-3 pb-3 flex justify-between items-center mt-auto">
+<span class="font-body-sm text-body-sm text-on-surface-variant">轻快元气色彩</span>
+<button class="glass-button px-4 py-1.5 rounded-full font-label-caps text-label-caps hover:bg-white/10 text-on-surface">应用</button>
+</div>
+</div>
+</div>
+<div class="mt-8 pt-8 border-t border-white/10">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-4">高级设置</h3>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<span class="font-body-lg text-body-lg text-on-surface">背景模糊度</span>
+<input class="w-32 h-1 bg-surface-variant rounded-full appearance-none outline-none [&amp;::-webkit-slider-thumb]:appearance-none [&amp;::-webkit-slider-thumb]:w-3 [&amp;::-webkit-slider-thumb]:h-3 [&amp;::-webkit-slider-thumb]:rounded-full [&amp;::-webkit-slider-thumb]:bg-primary" max="100" min="0" type="range" value="40">
+</div>
+<div class="flex items-center justify-between">
+<span class="font-body-lg text-body-lg text-on-surface">字体描边</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value="">
+<div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            if (panel.classList.contains('translate-x-full')) {
+                panel.classList.remove('translate-x-full');
+            } else {
+                panel.classList.add('translate-x-full');
+            }
+        }
+    </script>
+</body></html>

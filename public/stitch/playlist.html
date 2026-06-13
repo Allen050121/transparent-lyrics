@@ -1,0 +1,362 @@
+<!DOCTYPE html><html class="dark" lang="zh-CN" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Transparent Lyrics - 深夜沉浸</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#353534",
+                    "on-surface-variant": "#bdc8cf",
+                    "surface-container-low": "#1c1b1b",
+                    "on-error": "#690005",
+                    "background": "#131313",
+                    "tertiary-fixed": "#72fe88",
+                    "secondary": "#ffb3b5",
+                    "secondary-fixed-dim": "#ffb3b5",
+                    "tertiary-fixed-dim": "#53e16f",
+                    "on-tertiary-fixed": "#002107",
+                    "surface": "#131313",
+                    "primary-container": "#5ac8fa",
+                    "surface-bright": "#393939",
+                    "primary": "#a7e0ff",
+                    "tertiary": "#67f37f",
+                    "on-tertiary-container": "#00581f",
+                    "on-secondary-fixed-variant": "#920027",
+                    "secondary-container": "#de0541",
+                    "inverse-surface": "#e5e2e1",
+                    "inverse-primary": "#006687",
+                    "on-primary-container": "#00526e",
+                    "surface-tint": "#74d1ff",
+                    "on-secondary-fixed": "#40000c",
+                    "on-primary-fixed": "#001e2b",
+                    "tertiary-container": "#47d666",
+                    "surface-container-high": "#2a2a2a",
+                    "inverse-on-surface": "#313030",
+                    "on-primary": "#003548",
+                    "surface-dim": "#131313",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-error-container": "#ffdad6",
+                    "outline": "#889299",
+                    "on-background": "#e5e2e1",
+                    "on-tertiary": "#003911",
+                    "outline-variant": "#3e484e",
+                    "on-tertiary-fixed-variant": "#00531c",
+                    "error": "#ffb4ab",
+                    "primary-fixed": "#c1e8ff",
+                    "on-secondary-container": "#fff1f1",
+                    "primary-fixed-dim": "#74d1ff",
+                    "on-primary-fixed-variant": "#004d67",
+                    "surface-container": "#201f1f",
+                    "on-secondary": "#680019",
+                    "surface-variant": "#353534",
+                    "secondary-fixed": "#ffdada",
+                    "on-surface": "#e5e2e1",
+                    "error-container": "#93000a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "player-padding": "24px",
+                    "unit": "4px",
+                    "margin-desktop": "32px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Inter"],
+                    "lyrics-inactive": ["Plus Jakarta Sans"],
+                    "body-lg": ["Inter"],
+                    "headline-xl": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "lyrics-active": ["Plus Jakarta Sans"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "lyrics-inactive": ["24px", {"lineHeight": "36px", "letterSpacing": "0em", "fontWeight": "500"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-xl": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "lyrics-active": ["48px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(19, 19, 19, 0.4);
+            backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.15);
+            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+        }
+        .active-nav-border {
+            box-shadow: inset -2px 0 0 0 #a7e0ff;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-lg overflow-hidden h-screen select-none">
+<!-- Background Shader Layer -->
+
+<!-- Side Navigation Bar -->
+<aside class="fixed left-0 top-0 h-[calc(100%-96px)] w-64 flex flex-col p-6 bg-background/80 backdrop-blur-[40px] border-r border-white/15 z-50" style="height: calc(-6rem + 100vh); bottom: 6rem;">
+<div class="mb-10">
+<h1 class="font-headline-xl text-headline-xl font-bold text-on-surface tracking-tight">音乐</h1>
+<p class="font-label-caps text-label-caps text-primary mt-1 opacity-80">Luminous Clarity</p>
+</div>
+<div class="flex-grow overflow-y-auto pr-2 custom-scrollbar">
+<ul class="flex flex-col gap-1 mb-6">
+<li class=""><a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface transition-colors bg-white/10 scale-98" href="#"><span class="material-symbols-outlined">library_music</span><span class="font-label-caps text-label-caps">音乐库</span></a></li>
+<li class=""><a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface transition-colors hover:bg-white/5 duration-200 scale-98 active:scale-95" href="#"><span class="material-symbols-outlined">history</span><span class="font-label-caps text-label-caps">最近播放</span></a></li>
+<li class=""><a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface transition-colors hover:bg-white/5 duration-200 scale-98 active:scale-95 group" href="#"><span class="material-symbols-outlined">upload_file</span><span class="font-label-caps text-label-caps">导入资源</span></a></li>
+</ul>
+<div class="px-3 mb-2">
+<span class="font-label-caps text-[10px] text-on-surface-variant uppercase tracking-widest opacity-60">歌单</span>
+</div>
+<ul class="flex flex-col gap-1">
+<li class=""><a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface transition-colors hover:bg-white/5 duration-200 scale-98 active:scale-95 group" href="#"><span class="material-symbols-outlined text-[20px] opacity-70 group-hover:opacity-100">playlist_play</span><span class="font-label-caps text-label-caps">深夜沉浸</span></a></li>
+<li class=""><a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface transition-colors hover:bg-white/5 duration-200 scale-98 active:scale-95 group" href="#"><span class="material-symbols-outlined text-[20px] opacity-70 group-hover:opacity-100">water_drop</span><span class="font-label-caps text-label-caps">午后爵士</span></a></li>
+</ul>
+</div>
+<div class="mt-auto pt-6 border-t border-white/10 flex flex-col gap-4">
+<button class="flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg bg-primary/80 text-on-primary font-label-caps text-label-caps border border-white/20 hover:bg-primary transition-colors">
+<span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+                新建歌单
+            </button>
+<div class="flex justify-around text-on-surface-variant px-2">
+<a class="hover:text-primary transition-colors flex flex-col items-center gap-1 group" href="#">
+<span class="material-symbols-outlined group-hover:rotate-90 transition-transform duration-300">settings</span>
+<span class="font-label-caps text-label-caps scale-75">设置</span>
+</a>
+<a class="hover:text-primary transition-colors flex flex-col items-center gap-1" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-caps text-label-caps scale-75">帮助</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Top App Bar -->
+<header class="fixed top-0 right-0 left-64 h-16 flex justify-between items-center px-8 z-40 bg-transparent border-b border-white/10 backdrop-blur-[40px]">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-opacity opacity-80 hover:opacity-100">arrow_back_ios</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-opacity opacity-80 hover:opacity-100">arrow_forward_ios</button>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-black/30 border-none rounded-full pl-10 pr-4 py-1.5 w-64 text-body-sm focus:ring-1 focus:ring-primary transition-all placeholder:text-on-surface-variant/40" placeholder="搜索歌曲、艺人..." type="text">
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">notifications</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-white/20">
+<img class="w-full h-full object-cover" data-alt="A close-up professional headshot portrait of a man with a modern hairstyle and soft lighting, set against a blurred cinematic background. The image has a high-quality, polished feel consistent with a premium user profile icon. The color palette is muted with natural skin tones and soft shadows." src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&amp;fit=crop&amp;q=80&amp;w=200&amp;h=200">
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 mt-16 h-[calc(100vh-112px)] overflow-y-auto px-8 pb-32">
+<!-- Hero Section -->
+<section class="flex flex-col md:flex-row gap-8 pt-8 pb-12 items-end">
+<div class="w-64 h-64 flex-shrink-0 rounded-2xl overflow-hidden shadow-2xl glass-panel relative group">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="An atmospheric and moody album cover featuring a solitary person sitting by a rain-streaked window at night. Neon lights from a distant city reflect in the glass, creating a dreamy blue and purple hue. The mood is contemplative and peaceful, evoking a deep sense of nocturnal immersion and solitude." src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&amp;fit=crop&amp;q=80&amp;w=800&amp;h=800">
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-6xl" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<span class="font-label-caps text-label-caps text-primary bg-primary/10 px-3 py-1 rounded-full self-start">EXCLUSIVE PLAYLIST</span>
+<h2 class="font-headline-xl text-headline-xl text-on-surface font-bold">深夜沉浸</h2>
+<p class="font-body-lg text-on-surface-variant max-w-xl">
+                    在静谧的夜晚，让轻盈的旋律带你进入深层冥想。精选环境音、低保真节奏与极致人声，伴你度过每一个灵感涌现的瞬间。
+                </p>
+<div class="flex items-center gap-4 mt-2">
+<button class="flex items-center gap-2 px-8 py-3 bg-primary text-on-primary font-bold rounded-xl hover:opacity-90 transition-all active:scale-95">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                        全部播放
+                    </button>
+<button class="flex items-center gap-2 px-8 py-3 glass-panel text-on-surface font-bold rounded-xl hover:bg-white/10 transition-all active:scale-95">
+<span class="material-symbols-outlined">shuffle</span>
+                        随机播放
+                    </button>
+<button class="material-symbols-outlined p-3 glass-panel rounded-xl hover:text-secondary transition-colors">favorite</button>
+<button class="material-symbols-outlined p-3 glass-panel rounded-xl hover:bg-white/10 transition-colors">more_horiz</button>
+</div>
+</div>
+</section>
+<!-- Song List Section -->
+<section class="mt-8">
+<div class="grid grid-cols-[48px_1fr_1fr_100px_48px] gap-4 px-4 py-3 border-b border-white/10 text-on-surface-variant font-label-caps text-label-caps mb-2" style="transform: translateX(0px);">
+<span class="">#</span>
+<span class="">标题</span>
+<span class="">专辑</span>
+<span class="text-right">时长</span>
+<span></span>
+</div>
+<div class="space-y-1">
+<!-- Song Item 1 (Active) -->
+<div class="grid grid-cols-[48px_1fr_1fr_100px_48px] gap-4 px-4 py-3 rounded-xl bg-white/5 border border-white/5 items-center group hover:bg-white/10 transition-all" style="transform: translateX(0px);">
+<div class="relative flex items-center justify-center">
+<span class="group-hover:hidden text-primary font-bold">01</span>
+<span class="hidden group-hover:block material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-md overflow-hidden bg-surface-container-high">
+<img class="w-full h-full object-cover" data-alt="Abstract musical waves in shades of deep blue and neon cyan." src="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&amp;fit=crop&amp;q=80&amp;w=100&amp;h=100">
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface font-semibold">Midnight Whispers</span>
+<span class="text-on-surface-variant text-xs">Luminous Echoes</span>
+</div>
+</div>
+<span class="text-on-surface-variant text-sm truncate">Deep Ocean Dreams</span>
+<span class="text-on-surface-variant text-sm text-right">04:22</span>
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 hover:text-primary transition-all">favorite</button>
+</div>
+<!-- Song Item 2 -->
+<div class="grid grid-cols-[48px_1fr_1fr_100px_48px] gap-4 px-4 py-3 rounded-xl items-center group hover:bg-white/5 transition-all" style="transform: translateX(0px);">
+<div class="relative flex items-center justify-center">
+<span class="group-hover:hidden text-on-surface-variant">02</span>
+<span class="hidden group-hover:block material-symbols-outlined text-on-surface" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-md overflow-hidden bg-surface-container-high">
+<img class="w-full h-full object-cover" data-alt="A soft bokeh city background with warm golden and cool purple lights." src="https://images.unsplash.com/photo-1493225255756-d9584f8606e9?auto=format&amp;fit=crop&amp;q=80&amp;w=100&amp;h=100">
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface font-semibold">Stardust Serenade</span>
+<span class="text-on-surface-variant text-xs">Nebula Voyager</span>
+</div>
+</div>
+<span class="text-on-surface-variant text-sm truncate">Cosmic Drift</span>
+<span class="text-on-surface-variant text-sm text-right">03:55</span>
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 hover:text-primary transition-all">favorite</button>
+</div>
+<!-- Song Item 3 -->
+<div class="grid grid-cols-[48px_1fr_1fr_100px_48px] gap-4 px-4 py-3 rounded-xl items-center group hover:bg-white/5 transition-all" style="transform: translateX(0px);">
+<div class="relative flex items-center justify-center">
+<span class="group-hover:hidden text-on-surface-variant">03</span>
+<span class="hidden group-hover:block material-symbols-outlined text-on-surface" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-md overflow-hidden bg-surface-container-high">
+<img class="w-full h-full object-cover" data-alt="Macro view of crystalline glass reflecting prism colors." src="https://images.unsplash.com/photo-1459749411177-042180ce673c?auto=format&amp;fit=crop&amp;q=80&amp;w=100&amp;h=100">
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface font-semibold">Neon Rain</span>
+<span class="text-on-surface-variant text-xs">Cyber City Solitude</span>
+</div>
+</div>
+<span class="text-on-surface-variant text-sm truncate">Synthetic Soul</span>
+<span class="text-on-surface-variant text-sm text-right">05:10</span>
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 hover:text-primary transition-all">favorite</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer / Player Bar -->
+<footer class="fixed bottom-0 right-0 left-0 h-24 flex items-center justify-between px-8 z-[60] bg-surface-container-lowest/60 backdrop-blur-[40px] border-t border-white/15 shadow-[0px_-10px_30px_rgba(0,0,0,0.4)]">
+<!-- Currently Playing -->
+<div class="flex items-center gap-4 w-1/4">
+<div class="w-14 h-14 rounded-lg overflow-hidden shadow-lg">
+<img class="w-full h-full object-cover" data-alt="Abstract musical waves in shades of deep blue and neon cyan." src="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&amp;fit=crop&amp;q=80&amp;w=150&amp;h=150">
+</div>
+<div class="flex flex-col overflow-hidden">
+<span class="text-on-surface font-semibold truncate">Midnight Whispers</span>
+<span class="text-on-surface-variant text-xs truncate">Luminous Echoes</span>
+</div>
+<button class="material-symbols-outlined text-secondary text-xl ml-2" style="font-variation-settings: 'FILL' 1;">favorite</button>
+</div>
+<!-- Player Controls -->
+<div class="flex flex-col items-center gap-2 flex-1 max-w-2xl">
+<div class="flex items-center gap-8">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors">shuffle</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors scale-125">skip_previous</button>
+<button class="w-10 h-10 rounded-full bg-on-surface text-surface flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors scale-125">skip_next</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors">repeat</button>
+</div>
+<div class="w-full flex items-center gap-3">
+<span class="text-[10px] text-on-surface-variant/60 font-mono">01:45</span>
+<div class="flex-1 h-1 bg-white/10 rounded-full relative group cursor-pointer">
+<div class="absolute inset-y-0 left-0 bg-primary rounded-full" style="width: 40%;"></div>
+<div class="absolute top-1/2 -translate-y-1/2 left-[40%] w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant/60 font-mono">04:22</span>
+</div>
+</div>
+<!-- Volume & Actions -->
+<div class="flex items-center justify-end gap-4 w-1/4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface">lyrics</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface">queue_music</button>
+<div class="flex items-center gap-2 w-32 group">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">volume_up</span>
+<div class="flex-1 h-1 bg-white/10 rounded-full relative cursor-pointer">
+<div class="absolute inset-y-0 left-0 bg-white/60 rounded-full group-hover:bg-primary transition-colors" style="width: 70%;"></div>
+</div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface">fullscreen</button>
+</div>
+</footer>
+<script>
+        // Simple interactivity for demonstration
+        document.querySelectorAll('a, button').forEach(el => {
+            el.addEventListener('click', (e) => {
+                if (el.tagName === 'A') e.preventDefault();
+                console.log('Interaction:', el.innerText || el.getAttribute('aria-label') || 'Icon');
+            });
+        });
+
+        // Hover effect for song items
+        const songItems = document.querySelectorAll('.grid-cols-\\[48px_1fr_1fr_100px_48px\\]');
+        songItems.forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                item.style.transform = 'translateX(4px)';
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.transform = 'translateX(0)';
+            });
+        });
+    </script>
+
+
+
+
+
+
+
+
+
+
+
+
+</body></html>

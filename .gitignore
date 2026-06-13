@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dist-electron/
+*.tsbuildinfo
+.env
+.env.*
+npm-debug.log*
+*.log
+tmp-test/
+.ai-team/
+.stitch-reference/
+*.mp3
+*.flac
+*.wav
+*.m4a
+*.aac
+*.ogg

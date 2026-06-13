@@ -1,0 +1,376 @@
+<!DOCTYPE html><html class="dark" lang="zh-CN" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Transparent Lyrics - 沉浸式歌词</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&amp;family=Inter:wght@400;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "background": "#131313",
+                        "on-error": "#690005",
+                        "primary": "#a7e0ff",
+                        "tertiary": "#67f37f",
+                        "on-tertiary-fixed-variant": "#00531c",
+                        "on-error-container": "#ffdad6",
+                        "on-surface": "#e5e2e1",
+                        "on-secondary-fixed-variant": "#920027",
+                        "surface-tint": "#74d1ff",
+                        "outline": "#889299",
+                        "tertiary-container": "#47d666",
+                        "tertiary-fixed-dim": "#53e16f",
+                        "surface-dim": "#131313",
+                        "on-primary-fixed": "#001e2b",
+                        "on-secondary-container": "#fff1f1",
+                        "secondary-fixed-dim": "#ffb3b5",
+                        "on-primary-fixed-variant": "#004d67",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-background": "#e5e2e1",
+                        "on-secondary-fixed": "#40000c",
+                        "on-surface-variant": "#bdc8cf",
+                        "surface-variant": "#353534",
+                        "primary-fixed-dim": "#74d1ff",
+                        "on-tertiary-container": "#00581f",
+                        "surface-container-low": "#1c1b1b",
+                        "error-container": "#93000a",
+                        "secondary-fixed": "#ffdada",
+                        "on-primary-container": "#00526e",
+                        "secondary-container": "#de0541",
+                        "inverse-surface": "#e5e2e1",
+                        "primary-container": "#5ac8fa",
+                        "secondary": "#ffb3b5",
+                        "surface-container-highest": "#353534",
+                        "on-primary": "#003548",
+                        "surface": "#131313",
+                        "primary-fixed": "#c1e8ff",
+                        "tertiary-fixed": "#72fe88",
+                        "surface-container-high": "#2a2a2a",
+                        "on-tertiary": "#003911",
+                        "surface-container": "#201f1f",
+                        "on-secondary": "#680019",
+                        "inverse-primary": "#006687",
+                        "error": "#ffb4ab",
+                        "inverse-on-surface": "#313030",
+                        "surface-bright": "#393939",
+                        "outline-variant": "#3e484e",
+                        "on-tertiary-fixed": "#002107"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "player-padding": "24px",
+                        "gutter": "16px",
+                        "unit": "4px",
+                        "margin-desktop": "32px"
+                    },
+                    "fontFamily": {
+                        "lyrics-active": ["Plus Jakarta Sans"],
+                        "body-lg": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "body-sm": ["Inter"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "lyrics-inactive": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "lyrics-active": ["48px", { "lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-xl": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "lyrics-inactive": ["24px", { "lineHeight": "36px", "letterSpacing": "0em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(19, 19, 19, 0.4);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.4);
+        }
+        .glass-highlight {
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .lyric-glow {
+            text-shadow: 0 0 20px rgba(167, 224, 255, 0.4);
+        }
+        .custom-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            outline: none;
+        }
+        .custom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #a7e0ff;
+            cursor: pointer;
+        }
+        /* Editor bounding box */
+        .lyric-editor-box {
+            border: 1px dashed rgba(167, 224, 255, 0.5);
+            position: relative;
+        }
+        .lyric-editor-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #a7e0ff;
+            border: 1px solid rgba(255,255,255,0.8);
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface h-screen w-screen overflow-hidden flex font-body-lg">
+<!-- Fullscreen Blurred Background -->
+<div class="absolute inset-0 z-0">
+
+<div class="absolute inset-0 bg-gradient-to-b from-background/40 via-transparent to-background/80"></div>
+</div>
+<!-- SideNavBar -->
+
+<!-- Main Content Canvas -->
+<div class="relative z-10 flex-1 flex flex-col h-full">
+<!-- TopAppBar -->
+<header class="h-16 flex justify-between items-center px-8 z-40 bg-transparent backdrop-blur-[20px] border-b border-white/10 opacity-80 hover:opacity-100 transition-opacity">
+<div class="font-headline-md text-headline-md font-bold text-on-surface">音乐</div>
+<div class="flex items-center gap-gutter text-primary">
+<button class="hover:text-primary transition-colors">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<button class="hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+</header>
+<!-- Center Lyrics Area -->
+<main class="flex-1 flex items-center justify-center pt-16 pb-24 overflow-hidden relative">
+<div class="w-full max-w-4xl px-margin-desktop flex flex-col items-center justify-center space-y-8 relative">
+<!-- Inactive Lyric -->
+<div class="font-lyrics-inactive text-lyrics-inactive text-on-surface-variant/50 text-center transition-all duration-500 hover:text-on-surface-variant cursor-pointer">
+                    You've been running through my mind
+                </div>
+<!-- Inactive Lyric -->
+<div class="font-lyrics-inactive text-lyrics-inactive text-on-surface-variant/70 text-center transition-all duration-500 hover:text-on-surface-variant cursor-pointer">
+                    Looking for a place to hide
+                </div>
+<!-- Active Lyric (Editable) -->
+<div class="lyric-editor-box p-4 rounded-lg relative group cursor-move">
+<div class="lyric-editor-handle -top-1 -left-1 cursor-nwse-resize"></div>
+<div class="lyric-editor-handle -top-1 -right-1 cursor-nesw-resize"></div>
+<div class="lyric-editor-handle -bottom-1 -left-1 cursor-nesw-resize"></div>
+<div class="lyric-editor-handle -bottom-1 -right-1 cursor-nwse-resize"></div>
+<div class="font-lyrics-active text-lyrics-active text-primary lyric-glow text-center scale-110 transition-transform bg-primary/5 rounded-lg">
+                        In the luminous clarity of the night
+                    </div>
+</div>
+<!-- Inactive Lyric -->
+<div class="font-lyrics-inactive text-lyrics-inactive text-on-surface-variant/70 text-center transition-all duration-500 hover:text-on-surface-variant cursor-pointer">
+                    We finally found our way
+                </div>
+<!-- Inactive Lyric -->
+<div class="font-lyrics-inactive text-lyrics-inactive text-on-surface-variant/50 text-center transition-all duration-500 hover:text-on-surface-variant cursor-pointer">
+                    Out of the dark and into the light
+                </div>
+</div>
+<!-- Side Floating Toolbar (Tools) -->
+<div class="absolute left-margin-desktop top-1/2 transform -translate-y-1/2 flex flex-col gap-4">
+<button class="glass-panel w-12 h-12 rounded-full flex items-center justify-center text-on-surface hover:bg-white/10 transition-all hover:text-primary">
+<span class="material-symbols-outlined">image</span>
+</button>
+<button class="glass-panel w-12 h-12 rounded-full flex items-center justify-center text-on-surface hover:bg-white/10 transition-all hover:text-primary">
+<span class="material-symbols-outlined">subtitles</span>
+</button>
+<button class="glass-panel w-12 h-12 rounded-full flex items-center justify-center text-on-surface hover:bg-white/10 transition-all hover:text-primary">
+<span class="material-symbols-outlined">tune</span>
+</button>
+</div>
+<div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lyric-editor-box p-1 rounded-xl group cursor-move z-10 hidden">
+<div class="lyric-editor-handle -top-1 -left-1 cursor-nwse-resize"></div>
+<div class="lyric-editor-handle -top-1 -right-1 cursor-nesw-resize"></div>
+<div class="lyric-editor-handle -bottom-1 -left-1 cursor-nesw-resize"></div>
+<div class="lyric-editor-handle -bottom-1 -right-1 cursor-nwse-resize"></div>
+<div class="relative w-64 h-64 rounded-xl overflow-hidden shadow-lg border border-white/20">
+<div class="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent opacity-40"></div>
+</div>
+</div></main>
+<!-- Right Panel (Style Editor) -->
+<aside class="absolute right-margin-desktop top-24 w-80 glass-panel rounded-xl glass-highlight p-6 flex flex-col gap-6 overflow-y-auto z-30 bottom-24">
+<h2 class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest border-b border-white/10 pb-2">歌词样式设置</h2>
+<!-- Typography Section -->
+<div class="space-y-4">
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">字体</span>
+<button class="bg-surface/50 border border-white/10 px-3 py-1 rounded text-body-sm flex items-center gap-1 hover:bg-white/10">
+                        Plus Jakarta Sans <span class="material-symbols-outlined" style="font-size: 16px;">arrow_drop_down</span>
+</button>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">字号</span>
+<span class="font-label-caps text-label-caps text-primary">48px</span>
+</div>
+<input class="custom-slider" max="72" min="24" type="range" value="48">
+</div>
+</div>
+<!-- Color & Effects Section -->
+<div class="space-y-4 pt-4 border-t border-white/10">
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">主色</span>
+<div class="w-6 h-6 rounded-full bg-primary border border-white/20 cursor-pointer shadow-[0_0_10px_rgba(167,224,255,0.5)]"></div>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">外发光</span>
+<!-- Switch -->
+<div class="w-10 h-5 bg-primary/30 rounded-full relative cursor-pointer flex items-center px-1">
+<div class="w-4 h-4 bg-primary rounded-full absolute right-1"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">透明度</span>
+<span class="font-label-caps text-label-caps text-primary">100%</span>
+</div>
+<input class="custom-slider" max="100" min="0" type="range" value="100">
+</div>
+</div>
+<!-- Alignment Section -->
+<div class="space-y-4 pt-4 border-t border-white/10">
+<span class="font-body-sm text-body-sm text-on-surface block">对齐方式</span>
+<div class="flex gap-2 bg-surface/50 rounded-lg p-1 border border-white/10">
+<button class="flex-1 py-1 rounded text-on-surface-variant hover:text-on-surface transition-colors flex justify-center">
+<span class="material-symbols-outlined">format_align_left</span>
+</button>
+<button class="flex-1 py-1 rounded bg-white/10 text-primary shadow flex justify-center">
+<span class="material-symbols-outlined">format_align_center</span>
+</button>
+<button class="flex-1 py-1 rounded text-on-surface-variant hover:text-on-surface transition-colors flex justify-center">
+<span class="material-symbols-outlined">format_align_right</span>
+</button>
+</div>
+</div>
+<!-- Transform Section -->
+<div class="space-y-4 pt-4 border-t border-white/10">
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">旋转角度</span>
+<span class="font-label-caps text-label-caps text-primary">0°</span>
+</div>
+<input class="custom-slider" max="180" min="-180" type="range" value="0">
+</div>
+</div>
+<div class="space-y-4 pt-4 border-t border-white/10">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest pb-2">封面图设置</h3>
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">显示封面</span>
+<div class="w-10 h-5 bg-primary rounded-full relative cursor-pointer flex items-center px-1">
+<div class="w-4 h-4 bg-white rounded-full absolute right-1"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">缩放</span>
+<span class="font-label-caps text-label-caps text-primary">100%</span>
+</div>
+<input class="custom-slider" max="150" min="50" type="range" value="100">
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">圆角</span>
+<span class="font-label-caps text-label-caps text-primary">12px</span>
+</div>
+<input class="custom-slider" max="100" min="0" type="range" value="12">
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">持续旋转</span>
+<div class="w-10 h-5 bg-primary/30 rounded-full relative cursor-pointer flex items-center px-1">
+<div class="w-4 h-4 bg-primary rounded-full absolute left-1"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface">外发光</span>
+<div class="w-10 h-5 bg-primary rounded-full relative cursor-pointer flex items-center px-1">
+<div class="w-4 h-4 bg-white rounded-full absolute right-1"></div>
+</div>
+</div>
+</div></aside>
+<!-- Bottom Control Bar -->
+<footer class="fixed bottom-0 right-0 left-0 h-24 flex items-center justify-between px-8 z-[60] bg-surface-container-lowest/60 backdrop-blur-[40px] border-t border-white/15 shadow-[0px_-10px_30px_rgba(0,0,0,0.4)]">
+<!-- Currently Playing -->
+<div class="flex items-center gap-4 w-1/4">
+<div class="w-14 h-14 rounded-lg overflow-hidden shadow-lg">
+<img class="w-full h-full object-cover" data-alt="Album Art" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&amp;w=1000&amp;auto=format&amp;fit=crop">
+</div>
+<div class="flex flex-col overflow-hidden">
+<span class="text-on-surface font-semibold truncate">Luminous Night</span>
+<span class="text-on-surface-variant text-xs truncate">Aurora Pulse</span>
+</div>
+<button class="material-symbols-outlined text-secondary text-xl ml-2" style="font-variation-settings: 'FILL' 1;">favorite</button>
+</div>
+<!-- Player Controls -->
+<div class="flex flex-col items-center gap-2 flex-1 max-w-2xl">
+<div class="flex items-center gap-8">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors">shuffle</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors scale-125">skip_previous</button>
+<button class="w-10 h-10 rounded-full bg-on-surface text-surface flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors scale-125">skip_next</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors">repeat</button>
+</div>
+<div class="w-full flex items-center gap-3">
+<span class="text-[10px] text-on-surface-variant/60 font-mono">02:14</span>
+<div class="flex-1 h-1 bg-white/10 rounded-full relative group cursor-pointer">
+<div class="absolute inset-y-0 left-0 bg-primary rounded-full" style="width: 33%;"></div>
+<div class="absolute top-1/2 -translate-y-1/2 left-[33%] w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant/60 font-mono">04:30</span>
+</div>
+</div>
+<!-- Volume & Actions -->
+<div class="flex items-center justify-end gap-4 w-1/4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface">lyrics</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface">queue_music</button>
+<div class="flex items-center gap-2 w-32 group">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">volume_up</span>
+<div class="flex-1 h-1 bg-white/10 rounded-full relative cursor-pointer">
+<div class="absolute inset-y-0 left-0 bg-white/60 rounded-full group-hover:bg-primary transition-colors" style="width: 70%;"></div>
+</div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface">fullscreen</button>
+</div>
+</footer>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</body></html>
