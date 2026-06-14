@@ -451,6 +451,82 @@ button {
   font-weight: 700;
 }
 
+.update-check-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  max-width: 720px;
+  margin: -18px 24px 22px;
+  padding: 11px 12px 11px 14px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 14px;
+  color: #e7eef4;
+  background: rgba(255, 255, 255, .045);
+}
+
+.update-check-card.error {
+  border-color: rgba(255, 130, 130, .34);
+  background: rgba(140, 40, 40, .14);
+}
+
+.update-check-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.update-check-copy .material-symbols-outlined {
+  color: #a7e0ff;
+  font-size: 22px;
+}
+
+.update-check-card.error .update-check-copy .material-symbols-outlined {
+  color: #ffb5b5;
+}
+
+.update-check-copy div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.update-check-copy strong,
+.update-check-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-check-copy strong {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.update-check-copy span {
+  color: rgba(231, 238, 244, .62);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.update-check-card button {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(167, 224, 255, .28);
+  color: #d8f3ff;
+  background: rgba(167, 224, 255, .1);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.update-check-card button:disabled {
+  cursor: default;
+  opacity: .58;
+}
+
 .update-banner {
   position: relative;
   display: grid;

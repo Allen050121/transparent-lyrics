@@ -797,6 +797,19 @@ function App() {
     }
   }, []);
 
+  const checkForUpdates = useCallback(async () => {
+    const currentVersion = updaterStatus.currentVersion;
+    setUpdaterStatus({ status: "checking", currentVersion });
+    try {
+      const status = await window.transparentLyrics?.checkForUpdates?.();
+      if (status) setUpdaterStatus(status);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn("[Transparent Lyrics] Update check failed", error);
+      setUpdaterStatus({ status: "error", currentVersion, error: message });
+    }
+  }, [updaterStatus.currentVersion]);
+
   const installUpdate = useCallback(async () => {
     try {
       await window.transparentLyrics?.installUpdate?.();
@@ -923,6 +936,7 @@ function App() {
             playTrack={playTrack}
             playAll={() => tracks[0] && playTrack(tracks[0].id)}
             updaterStatus={updaterStatus}
+            checkForUpdates={checkForUpdates}
             downloadUpdate={downloadUpdate}
             installUpdate={installUpdate}
           />
@@ -1203,6 +1217,34 @@ function UpdateBanner({ status, downloadUpdate, installUpdate }: { status: Updat
   );
 }
 
+function formatUpdateError(error: string) {
+  if (/ERR_CONNECTION_CLOSED/i.test(error)) return "GitHub 连接被关闭，可能是网络或代理临时不稳定";
+  if (/No published versions/i.test(error)) return "GitHub Release 暂时没有可读取的版本信息";
+  return error;
+}
+
+function UpdateCheckCard({ status, checkForUpdates }: { status: UpdaterStatus; checkForUpdates: () => void }) {
+  if (status.status === "available" || status.status === "downloading" || status.status === "downloaded") return null;
+  const checking = status.status === "checking";
+  const isError = status.status === "error";
+  const title = isError ? "更新检查失败" : status.status === "not-available" ? "已是最新测试版" : "测试版更新";
+  const detail = isError
+    ? formatUpdateError(status.error)
+    : status.status === "checking"
+      ? "正在连接 GitHub Release..."
+      : `当前版本 v${status.currentVersion}`;
+
+  return (
+    <div className={`update-check-card ${isError ? "error" : ""}`}>
+      <div className="update-check-copy">
+        <Icon>{isError ? "wifi_off" : checking ? "sync" : "new_releases"}</Icon>
+        <div><strong>{title}</strong><span>{detail}</span></div>
+      </div>
+      <button type="button" onClick={checkForUpdates} disabled={checking}>{checking ? "检查中" : isError ? "重新检查" : "检查更新"}</button>
+    </div>
+  );
+}
+
 function LibraryPage({
   tracks,
   activeTrack,
@@ -1210,6 +1252,7 @@ function LibraryPage({
   playTrack,
   playAll,
   updaterStatus,
+  checkForUpdates,
   downloadUpdate,
   installUpdate,
 }: {
@@ -1219,6 +1262,7 @@ function LibraryPage({
   playTrack: (trackId: string) => void;
   playAll: () => void;
   updaterStatus: UpdaterStatus;
+  checkForUpdates: () => void;
   downloadUpdate: () => void;
   installUpdate: () => void;
 }) {
@@ -1226,6 +1270,7 @@ function LibraryPage({
   return (
     <div className="page-inner library-page">
       <section className="page-heading"><h2>{"\u97f3\u4e50\u5e93"}</h2><p><span>{stats.count}</span><span>•</span><span>{stats.duration}</span></p></section>
+      <UpdateCheckCard status={updaterStatus} checkForUpdates={checkForUpdates} />
       <UpdateBanner status={updaterStatus} downloadUpdate={downloadUpdate} installUpdate={installUpdate} />
       <div className="toolbar-row"><div className="button-row"><button className="primary-pill" type="button" onClick={playAll}>{"\u5168\u90e8\u64ad\u653e"}</button><button className="ghost-pill" type="button"><Icon>shuffle</Icon>{"\u968f\u673a"}</button></div><button className="icon-button" type="button" aria-label={"\u7b5b\u9009"}><Icon>filter_list</Icon></button></div>
       <TrackTable tracks={tracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} emptyText={"\u97f3\u4e50\u5e93\u8fd8\u662f\u7a7a\u7684\uff0c\u5148\u53bb\u5bfc\u5165\u8d44\u6e90\u6dfb\u52a0\u672c\u5730\u6b4c\u66f2\u3002"} />
