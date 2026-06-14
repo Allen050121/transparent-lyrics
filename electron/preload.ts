@@ -6,4 +6,7 @@ contextBridge.exposeInMainWorld("transparentLyrics", {
   loadAudioFile: (filePath: string) => ipcRenderer.invoke("library:load-audio", filePath),
   openLrcFiles: () => ipcRenderer.invoke("library:open-lrc"),
   openImageFile: () => ipcRenderer.invoke("library:open-image"),
+  minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
+  toggleMaximizeWindow: () => ipcRenderer.invoke("window:toggle-maximize"),
+  closeWindow: () => ipcRenderer.invoke("window:close"),
 });

@@ -10,6 +10,9 @@ interface Window {
     searchLyrics?: (query: LyricsSearchQuery) => Promise<LyricsSearchResult>;
     openLrcFiles?: () => Promise<string[]>;
     openImageFile?: () => Promise<string | null>;
+    minimizeWindow?: () => Promise<void>;
+    toggleMaximizeWindow?: () => Promise<void>;
+    closeWindow?: () => Promise<void>;
   };
 }
 

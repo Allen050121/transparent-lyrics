@@ -9,9 +9,40 @@ npm-debug.log*
 tmp-test/
 .ai-team/
 .stitch-reference/
+
+# Local/imported user media. Keep personal songs, lyrics, wallpapers,
+# covers, and generated local libraries out of GitHub uploads.
+media-library/
+local-library/
+imported-media/
+imported-resources/
+uploads/
+user-data/
 *.mp3
 *.flac
 *.wav
 *.m4a
 *.aac
 *.ogg
+*.lrc
+*.srt
+*.vtt
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.gif
+*.bmp
+*.avif
+*.mp4
+*.mov
+*.mkv
+*.webm
+
+# Allow intentional app-owned assets.
+!src/assets/
+!src/assets/**
+!public/assets/
+!public/assets/**
+!public/stitch/assets/
+!public/stitch/assets/**

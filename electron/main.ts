@@ -1,7 +1,6 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { fileURLToPath } from "node:url";
 import { parseFile } from "music-metadata";
 
@@ -174,8 +173,8 @@ function createMainWindow() {
     minWidth: 1100,
     minHeight: 760,
     backgroundColor: "#101010",
-    titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 18, y: 18 },
+    title: "",
+    frame: false,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -189,6 +188,7 @@ function createMainWindow() {
   } else {
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
+  win.setTitle("");
 }
 
 app.whenReady().then(() => {
@@ -205,6 +205,24 @@ app.whenReady().then(() => {
 
     if (result.canceled) return [];
     return Promise.all(result.filePaths.map(async (filePath, index) => buildImportedAudio(filePath, index)));
+  });
+
+  ipcMain.handle("window:minimize", (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize();
+  });
+
+  ipcMain.handle("window:toggle-maximize", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+  });
+
+  ipcMain.handle("window:close", (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close();
   });
 
   ipcMain.handle("library:scan-folder", async () => {
@@ -311,7 +329,16 @@ app.whenReady().then(() => {
         { name: "All Files", extensions: ["*"] },
       ],
     });
-    return result.canceled || !result.filePaths[0] ? null : pathToFileURL(result.filePaths[0]).toString();
+    if (result.canceled || !result.filePaths[0]) return null;
+    const imagePath = result.filePaths[0];
+    const bytes = await fs.readFile(imagePath);
+    const ext = path.extname(imagePath).toLowerCase();
+    const mimeType =
+      ext === ".png" ? "image/png"
+      : ext === ".webp" ? "image/webp"
+      : ext === ".gif" ? "image/gif"
+      : "image/jpeg";
+    return `data:${mimeType};base64,${bytes.toString("base64")}`;
   });
 
   createMainWindow();

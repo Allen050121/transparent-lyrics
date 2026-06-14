@@ -9,4 +9,7 @@ contextBridge.exposeInMainWorld("transparentLyrics", {
   searchLyrics: (query) => ipcRenderer.invoke("library:search-lyrics", query),
   openLrcFiles: () => ipcRenderer.invoke("library:open-lrc"),
   openImageFile: () => ipcRenderer.invoke("library:open-image"),
+  minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
+  toggleMaximizeWindow: () => ipcRenderer.invoke("window:toggle-maximize"),
+  closeWindow: () => ipcRenderer.invoke("window:close"),
 });
