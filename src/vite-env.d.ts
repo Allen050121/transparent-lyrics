@@ -13,6 +13,11 @@ interface Window {
     minimizeWindow?: () => Promise<void>;
     toggleMaximizeWindow?: () => Promise<void>;
     closeWindow?: () => Promise<void>;
+    getAppVersion?: () => Promise<string>;
+    checkForUpdates?: () => Promise<UpdaterStatus>;
+    downloadUpdate?: () => Promise<UpdaterStatus>;
+    installUpdate?: () => Promise<void>;
+    onUpdaterStatus?: (callback: (status: UpdaterStatus) => void) => () => void;
   };
 }
 
@@ -59,3 +64,12 @@ type LyricsSearchResult =
     }
   | { status: "not-found"; candidates?: unknown[] }
   | { status: "failed"; error?: string };
+
+type UpdaterStatus =
+  | { status: "idle"; currentVersion: string }
+  | { status: "checking"; currentVersion: string }
+  | { status: "available"; currentVersion: string; version: string; releaseName?: string; releaseNotes?: string }
+  | { status: "not-available"; currentVersion: string }
+  | { status: "downloading"; currentVersion: string; version?: string; progress: number }
+  | { status: "downloaded"; currentVersion: string; version: string; releaseName?: string }
+  | { status: "error"; currentVersion: string; error: string };

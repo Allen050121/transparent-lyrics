@@ -76,6 +76,8 @@ type LyricPreset = {
   custom?: boolean;
 };
 
+type UpdateBannerStatus = Extract<UpdaterStatus, { status: "available" | "downloading" | "downloaded" }>;
+
 const defaultLyricStyle: LyricStyle = {
   presetId: "night-tilt",
   x: 8,
@@ -452,6 +454,7 @@ function App() {
   const [globalLyricStyle, setGlobalLyricStyle] = useState<LyricStyle>(readGlobalLyricStyle);
   const [customLyricPresets, setCustomLyricPresets] = useState<LyricPreset[]>(readCustomLyricPresets);
   const [imageImportTarget, setImageImportTarget] = useState<"background" | "cover">("background");
+  const [updaterStatus, setUpdaterStatus] = useState<UpdaterStatus>({ status: "idle", currentVersion: "0.1.0" });
   const audioRef = useRef<HTMLAudioElement>(null);
   const objectUrlsRef = useRef<Map<string, string>>(new Map());
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -786,6 +789,22 @@ function App() {
     writeCustomLyricPresets(nextPresets);
   }, [customLyricPresets]);
 
+  const downloadUpdate = useCallback(async () => {
+    try {
+      await window.transparentLyrics?.downloadUpdate?.();
+    } catch (error) {
+      console.warn("[Transparent Lyrics] Update download failed", error);
+    }
+  }, []);
+
+  const installUpdate = useCallback(async () => {
+    try {
+      await window.transparentLyrics?.installUpdate?.();
+    } catch (error) {
+      console.warn("[Transparent Lyrics] Update install failed", error);
+    }
+  }, []);
+
   const togglePlayback = useCallback(() => {
     if (!activeTrack) {
       return;
@@ -850,6 +869,26 @@ function App() {
   }, [tracks]);
 
   useEffect(() => {
+    let mounted = true;
+    window.transparentLyrics?.getAppVersion?.()
+      .then((version) => {
+        if (mounted && version) setUpdaterStatus({ status: "idle", currentVersion: version });
+      })
+      .catch((error) => console.warn("[Transparent Lyrics] Failed to read app version", error));
+    const unsubscribe = window.transparentLyrics?.onUpdaterStatus?.((status) => {
+      if (!mounted) return;
+      if (status.status === "error") {
+        console.warn("[Transparent Lyrics] Update check failed", status.error);
+      }
+      setUpdaterStatus(status);
+    });
+    return () => {
+      mounted = false;
+      unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = volume;
@@ -877,7 +916,16 @@ function App() {
       <TopBar view={view} selectedPlaylist={selectedPlaylist} goBack={goBack} goForward={goForward} />
       <section className="content-shell">
         {view === "main" && (
-          <LibraryPage tracks={tracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} playAll={() => tracks[0] && playTrack(tracks[0].id)} />
+          <LibraryPage
+            tracks={tracks}
+            activeTrack={activeTrack}
+            playing={playing}
+            playTrack={playTrack}
+            playAll={() => tracks[0] && playTrack(tracks[0].id)}
+            updaterStatus={updaterStatus}
+            downloadUpdate={downloadUpdate}
+            installUpdate={installUpdate}
+          />
         )}
         {view === "recent" && (
           <RecentPage tracks={recentTracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} />
@@ -1119,11 +1167,66 @@ function TrackCover({ track, active, playing }: { track: Track; active: boolean;
   return <div className="cover-box">{hasImage ? <img alt="Album" src={getCover(track)} /> : <Icon>music_note</Icon>}<span className="cover-badge"><Icon>{active && playing ? "pause" : "play_arrow"}</Icon></span></div>;
 }
 
-function LibraryPage({ tracks, activeTrack, playing, playTrack, playAll }: { tracks: Track[]; activeTrack: Track; playing: boolean; playTrack: (trackId: string) => void; playAll: () => void }) {
+function UpdateBanner({ status, downloadUpdate, installUpdate }: { status: UpdaterStatus; downloadUpdate: () => void; installUpdate: () => void }) {
+  const [showNotes, setShowNotes] = useState(false);
+  if (status.status !== "available" && status.status !== "downloading" && status.status !== "downloaded") return null;
+  const visibleStatus: UpdateBannerStatus = status;
+  const version = "version" in visibleStatus && visibleStatus.version ? visibleStatus.version : "";
+  const releaseNotes = visibleStatus.status === "available" ? visibleStatus.releaseNotes : undefined;
+  const title =
+    visibleStatus.status === "downloaded"
+      ? "\u65b0\u7248\u672c\u5df2\u51c6\u5907\u597d"
+      : visibleStatus.status === "downloading"
+        ? "\u6b63\u5728\u4e0b\u8f7d\u66f4\u65b0"
+        : `\u53d1\u73b0\u65b0\u7248\u672c v${version}`;
+  const detail =
+    visibleStatus.status === "downloading"
+      ? `${Math.round(visibleStatus.progress)}%`
+      : visibleStatus.status === "downloaded"
+        ? `v${version} \u53ef\u4ee5\u91cd\u542f\u5b89\u88c5`
+        : `\u5f53\u524d\u7248\u672c v${visibleStatus.currentVersion}`;
+
+  return (
+    <div className="update-banner">
+      <div className="update-banner-main">
+        <Icon>{visibleStatus.status === "downloaded" ? "download_done" : "system_update_alt"}</Icon>
+        <div><strong>{title}</strong><span>{detail}</span></div>
+      </div>
+      <div className="update-actions">
+        {releaseNotes && <button type="button" onClick={() => setShowNotes((current) => !current)}>{showNotes ? "\u6536\u8d77\u5185\u5bb9" : "\u67e5\u770b\u66f4\u65b0\u5185\u5bb9"}</button>}
+        {visibleStatus.status === "available" && <button type="button" onClick={downloadUpdate}>{"\u4e0b\u8f7d\u66f4\u65b0"}</button>}
+        {visibleStatus.status === "downloaded" && <button type="button" onClick={installUpdate}>{"\u91cd\u542f\u5e76\u5b89\u88c5"}</button>}
+      </div>
+      {visibleStatus.status === "downloading" && <div className="update-progress" aria-label={"\u66f4\u65b0\u4e0b\u8f7d\u8fdb\u5ea6"}><span style={{ width: `${Math.round(visibleStatus.progress)}%` }} /></div>}
+      {showNotes && releaseNotes && <pre className="update-notes">{releaseNotes}</pre>}
+    </div>
+  );
+}
+
+function LibraryPage({
+  tracks,
+  activeTrack,
+  playing,
+  playTrack,
+  playAll,
+  updaterStatus,
+  downloadUpdate,
+  installUpdate,
+}: {
+  tracks: Track[];
+  activeTrack: Track;
+  playing: boolean;
+  playTrack: (trackId: string) => void;
+  playAll: () => void;
+  updaterStatus: UpdaterStatus;
+  downloadUpdate: () => void;
+  installUpdate: () => void;
+}) {
   const stats = getLibraryStats(tracks);
   return (
     <div className="page-inner library-page">
       <section className="page-heading"><h2>{"\u97f3\u4e50\u5e93"}</h2><p><span>{stats.count}</span><span>•</span><span>{stats.duration}</span></p></section>
+      <UpdateBanner status={updaterStatus} downloadUpdate={downloadUpdate} installUpdate={installUpdate} />
       <div className="toolbar-row"><div className="button-row"><button className="primary-pill" type="button" onClick={playAll}>{"\u5168\u90e8\u64ad\u653e"}</button><button className="ghost-pill" type="button"><Icon>shuffle</Icon>{"\u968f\u673a"}</button></div><button className="icon-button" type="button" aria-label={"\u7b5b\u9009"}><Icon>filter_list</Icon></button></div>
       <TrackTable tracks={tracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} emptyText={"\u97f3\u4e50\u5e93\u8fd8\u662f\u7a7a\u7684\uff0c\u5148\u53bb\u5bfc\u5165\u8d44\u6e90\u6dfb\u52a0\u672c\u5730\u6b4c\u66f2\u3002"} />
       <div className="load-more-wrap"><button className="load-more" type="button">{"\u52a0\u8f7d\u66f4\u591a"}</button></div>

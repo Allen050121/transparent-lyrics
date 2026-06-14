@@ -1,18 +1,103 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain } from "electron";
+import log from "electron-log";
+import updaterPkg, { type UpdateInfo } from "electron-updater";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseFile } from "music-metadata";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const { autoUpdater } = updaterPkg;
 const isDev = !app.isPackaged;
 const preloadPath = isDev
   ? path.join(__dirname, "../electron/preload.cjs")
   : path.join(__dirname, "preload.cjs");
+const appIconPath = isDev
+  ? path.join(__dirname, "../build/icon.png")
+  : path.join(__dirname, "../build/icon.png");
 const audioExtensions = new Set([".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac"]);
+let mainWindow: BrowserWindow | null = null;
+let pendingUpdateVersion: string | undefined;
+
+type UpdaterStatus =
+  | { status: "idle"; currentVersion: string }
+  | { status: "checking"; currentVersion: string }
+  | { status: "available"; currentVersion: string; version: string; releaseName?: string; releaseNotes?: string }
+  | { status: "not-available"; currentVersion: string }
+  | { status: "downloading"; currentVersion: string; version?: string; progress: number }
+  | { status: "downloaded"; currentVersion: string; version: string; releaseName?: string }
+  | { status: "error"; currentVersion: string; error: string };
 
 if (isDev) {
   app.commandLine.appendSwitch("remote-debugging-port", "9222");
+}
+
+function normalizeReleaseNotes(notes: UpdateInfo["releaseNotes"]) {
+  if (!notes) return undefined;
+  if (typeof notes === "string") return notes;
+  if (Array.isArray(notes)) {
+    return notes
+      .map((note) => {
+        if (typeof note === "string") return note;
+        return [note.version, note.note].filter(Boolean).join("\n");
+      })
+      .filter(Boolean)
+      .join("\n\n");
+  }
+  return String(notes);
+}
+
+function sendUpdaterStatus(status: UpdaterStatus) {
+  log.info("[updater]", status);
+  mainWindow?.webContents.send("updater:status", status);
+}
+
+function configureAutoUpdater() {
+  autoUpdater.logger = log;
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.allowPrerelease = true;
+
+  autoUpdater.on("checking-for-update", () => {
+    sendUpdaterStatus({ status: "checking", currentVersion: app.getVersion() });
+  });
+  autoUpdater.on("update-available", (info) => {
+    pendingUpdateVersion = info.version;
+    sendUpdaterStatus({
+      status: "available",
+      currentVersion: app.getVersion(),
+      version: info.version,
+      releaseName: info.releaseName || undefined,
+      releaseNotes: normalizeReleaseNotes(info.releaseNotes),
+    });
+  });
+  autoUpdater.on("update-not-available", () => {
+    sendUpdaterStatus({ status: "not-available", currentVersion: app.getVersion() });
+  });
+  autoUpdater.on("download-progress", (progress) => {
+    sendUpdaterStatus({
+      status: "downloading",
+      currentVersion: app.getVersion(),
+      version: pendingUpdateVersion,
+      progress: Math.max(0, Math.min(100, progress.percent || 0)),
+    });
+  });
+  autoUpdater.on("update-downloaded", (info) => {
+    pendingUpdateVersion = info.version;
+    sendUpdaterStatus({
+      status: "downloaded",
+      currentVersion: app.getVersion(),
+      version: info.version,
+      releaseName: info.releaseName || undefined,
+    });
+  });
+  autoUpdater.on("error", (error) => {
+    sendUpdaterStatus({
+      status: "error",
+      currentVersion: app.getVersion(),
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
 }
 
 async function copyToLibrary(filePath: string, index: number) {
@@ -175,12 +260,17 @@ function createMainWindow() {
     backgroundColor: "#101010",
     title: "",
     frame: false,
+    icon: appIconPath,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
     },
+  });
+  mainWindow = win;
+  win.on("closed", () => {
+    if (mainWindow === win) mainWindow = null;
   });
 
   if (isDev) {
@@ -193,6 +283,7 @@ function createMainWindow() {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
+  configureAutoUpdater();
   ipcMain.handle("library:open-audio", async () => {
     const result = await dialog.showOpenDialog({
       title: "导入歌曲",
@@ -223,6 +314,34 @@ app.whenReady().then(() => {
 
   ipcMain.handle("window:close", (event) => {
     BrowserWindow.fromWebContents(event.sender)?.close();
+  });
+
+  ipcMain.handle("app:get-version", () => app.getVersion());
+
+  ipcMain.handle("updater:check", async () => {
+    if (isDev) {
+      const status: UpdaterStatus = { status: "not-available", currentVersion: app.getVersion() };
+      sendUpdaterStatus(status);
+      return status;
+    }
+    await autoUpdater.checkForUpdates();
+    return { status: "checking", currentVersion: app.getVersion() } satisfies UpdaterStatus;
+  });
+
+  ipcMain.handle("updater:download", async () => {
+    if (isDev) {
+      const status: UpdaterStatus = { status: "not-available", currentVersion: app.getVersion() };
+      sendUpdaterStatus(status);
+      return status;
+    }
+    await autoUpdater.downloadUpdate();
+    return { status: "downloading", currentVersion: app.getVersion(), progress: 0 } satisfies UpdaterStatus;
+  });
+
+  ipcMain.handle("updater:install", () => {
+    if (!isDev) {
+      autoUpdater.quitAndInstall(false, true);
+    }
   });
 
   ipcMain.handle("library:scan-folder", async () => {
@@ -342,6 +461,13 @@ app.whenReady().then(() => {
   });
 
   createMainWindow();
+  if (!isDev) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch((error) => {
+        log.warn("[updater] startup check failed", error);
+      });
+    }, 3500);
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

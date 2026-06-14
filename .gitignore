@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-electron/
+release/
 *.tsbuildinfo
 .env
 .env.*
@@ -46,3 +47,5 @@ user-data/
 !public/assets/**
 !public/stitch/assets/
 !public/stitch/assets/**
+!build/
+!build/**

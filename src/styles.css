@@ -451,6 +451,113 @@ button {
   font-weight: 700;
 }
 
+.update-banner {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin: -18px 24px 22px;
+  padding: 14px 16px;
+  border: 1px solid rgba(167, 224, 255, .22);
+  border-radius: 14px;
+  color: #e7eef4;
+  background: linear-gradient(135deg, rgba(167, 224, 255, .16), rgba(255, 255, 255, .045));
+  box-shadow: 0 14px 38px rgba(0, 0, 0, .26);
+  overflow: hidden;
+}
+
+.update-banner-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.update-banner-main .material-symbols-outlined {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  color: #111618;
+  background: #a7e0ff;
+}
+
+.update-banner-main div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.update-banner-main strong,
+.update-banner-main span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-banner-main strong {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.update-banner-main span {
+  color: rgba(231, 238, 244, .68);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.update-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.update-actions button {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  color: #e7eef4;
+  background: rgba(255, 255, 255, .08);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.update-actions button:last-child {
+  color: #111618;
+  border-color: transparent;
+  background: #a7e0ff;
+}
+
+.update-progress {
+  grid-column: 1 / -1;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .14);
+  overflow: hidden;
+}
+
+.update-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a7e0ff, #61f282);
+}
+
+.update-notes {
+  grid-column: 1 / -1;
+  max-height: 140px;
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  color: rgba(231, 238, 244, .78);
+  background: rgba(0, 0, 0, .22);
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
 .toolbar-row,
 .section-title-row {
   display: flex;

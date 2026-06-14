@@ -1,30 +1,82 @@
 {
   "name": "transparent-lyrics",
+  "productName": "Transparent Lyrics",
   "version": "0.1.0",
+  "description": "A local Windows desktop music player focused on immersive DIY lyric visuals.",
+  "author": "Allen050121",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"tsc -p electron/tsconfig.json --watch\" \"wait-on tcp:5173 && electron .\"",
     "build": "tsc -b && tsc -p electron/tsconfig.json && node -e \"require('fs').copyFileSync('electron/preload.cjs','dist-electron/preload.cjs')\" && vite build",
+    "dist:win": "npm run build && set ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/&& electron-builder --win nsis",
+    "release:win": "npm run build && set ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/&& electron-builder --win nsis --publish always",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
+  "build": {
+    "appId": "com.allen.transparentlyrics",
+    "productName": "Transparent Lyrics",
+    "artifactName": "TransparentLyrics-Setup-${version}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "build/**/*",
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Allen050121",
+        "repo": "transparent-lyrics",
+        "releaseType": "prerelease"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Transparent Lyrics",
+      "deleteAppDataOnUninstall": false
+    }
+  },
   "dependencies": {
-    "@vitejs/plugin-react": "^4.3.4",
-    "electron": "^32.3.3",
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.8.9",
     "lucide-react": "^0.558.0",
     "music-metadata": "^11.13.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "typescript": "^5.9.3",
-    "vite": "^5.4.21"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.2.1",
+    "electron": "^32.3.3",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
     "wait-on": "^9.0.3"
   }
 }
