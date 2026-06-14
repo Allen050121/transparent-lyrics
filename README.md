@@ -1,6 +1,6 @@
-# Transparent Lyrics
+# TransparentLyrics
 
-Transparent Lyrics is a local Windows desktop music player built with Electron, React, TypeScript, and Vite.
+TransparentLyrics is a local Windows desktop music player built with Electron, React, TypeScript, and Vite.
 
 The app is designed for personal local use: import local songs, play music, manage a lightweight library, match lyrics, upload backgrounds, and prepare for immersive draggable lyric styling. It does not require a server deployment.
 

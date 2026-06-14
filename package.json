@@ -1,6 +1,6 @@
 {
   "name": "transparent-lyrics",
-  "productName": "Transparent Lyrics",
+  "productName": "TransparentLyrics",
   "version": "0.1.0",
   "description": "A local Windows desktop music player focused on immersive DIY lyric visuals.",
   "author": "Allen050121",
@@ -17,7 +17,7 @@
   },
   "build": {
     "appId": "com.allen.transparentlyrics",
-    "productName": "Transparent Lyrics",
+    "productName": "TransparentLyrics",
     "artifactName": "TransparentLyrics-Setup-${version}.${ext}",
     "directories": {
       "output": "release"
@@ -51,11 +51,12 @@
     "nsis": {
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
+      "include": "build/installer.nsh",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Transparent Lyrics",
+      "shortcutName": "TransparentLyrics",
       "deleteAppDataOnUninstall": false
     }
   },
