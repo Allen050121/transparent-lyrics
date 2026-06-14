@@ -1,7 +1,7 @@
 {
   "name": "transparent-lyrics",
   "productName": "TransparentLyrics",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A local Windows desktop music player focused on immersive DIY lyric visuals.",
   "author": "Allen050121",
   "private": true,
