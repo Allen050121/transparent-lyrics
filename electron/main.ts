@@ -35,6 +35,7 @@ type UpdaterStatus =
 
 if (isDev) {
   app.commandLine.appendSwitch("remote-debugging-port", "9222");
+  app.commandLine.appendSwitch("disable-http-cache");
 }
 
 function normalizeReleaseNotes(notes: UpdateInfo["releaseNotes"]) {
@@ -377,7 +378,35 @@ function createMainWindow() {
   });
 
   if (isDev) {
-    win.loadURL("http://127.0.0.1:5173");
+    const devUrl = "http://127.0.0.1:5173";
+    let emptyRootReloaded = false;
+    win.webContents.session.clearCache().catch((error) => {
+      log.warn("[dev] failed to clear renderer cache", error);
+    }).finally(() => {
+      win.loadURL(devUrl);
+    });
+    win.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+      if (validatedURL !== devUrl) return;
+      log.warn("[dev] renderer load failed, retrying", { errorCode, errorDescription });
+      setTimeout(() => {
+        if (!win.isDestroyed()) win.loadURL(devUrl);
+      }, 800);
+    });
+    win.webContents.on("did-finish-load", () => {
+      setTimeout(() => {
+        if (win.isDestroyed() || emptyRootReloaded) return;
+        win.webContents.executeJavaScript("document.querySelector('#root')?.childElementCount ?? 0", true)
+          .then((childCount) => {
+            if (childCount > 0 || emptyRootReloaded || win.isDestroyed()) return;
+            emptyRootReloaded = true;
+            log.warn("[dev] renderer root is empty after load, reloading once");
+            win.webContents.reloadIgnoringCache();
+          })
+          .catch((error) => {
+            log.warn("[dev] failed to inspect renderer root", error);
+          });
+      }, 500);
+    });
   } else {
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
