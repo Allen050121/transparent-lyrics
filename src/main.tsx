@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import { ManualLyricsDialog } from "./ManualLyricsDialog";
+import { lyricStatusLabel, parseLrcLines, type LyricsCandidate, type LyricsStatus, type ManualLyricsState } from "./lyrics";
 
 type View = "main" | "playlist" | "recent" | "import" | "lyrics" | "settings" | "mini";
 
@@ -40,8 +42,6 @@ type LyricStyle = {
   backgroundImage?: string;
 };
 
-type LyricsStatus = "unmatched" | "matched" | "not-found" | "failed";
-
 type TrackLyrics = {
   source: "lrclib" | "manual";
   status: LyricsStatus;
@@ -68,18 +68,6 @@ type Track = {
   coverImage?: string;
   lyrics?: TrackLyrics;
   lyricStyle: LyricStyle;
-};
-
-type ManualLyricsState = {
-  open: boolean;
-  trackId: string;
-  title: string;
-  artist: string;
-  album: string;
-  pasteText: string;
-  searching: boolean;
-  error: string;
-  candidates: LyricsCandidate[];
 };
 
 type LyricPreset = {
@@ -326,30 +314,6 @@ function mergeImportedTracks(imported: Track[], currentTracks: Track[]) {
     seen.add(key);
     return true;
   });
-}
-
-function lyricStatusLabel(status?: LyricsStatus) {
-  if (status === "matched") return "\u5df2\u5339\u914d";
-  if (status === "not-found") return "\u65e0\u7ed3\u679c";
-  if (status === "failed") return "\u5339\u914d\u5931\u8d25";
-  return "\u672a\u5339\u914d";
-}
-
-function parseLrcLines(text?: string) {
-  if (!text) return [] as Array<{ time: number; text: string }>;
-  const lines: Array<{ time: number; text: string }> = [];
-  text.split(/\r?\n/).forEach((line) => {
-    const matches = Array.from(line.matchAll(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g));
-    const content = line.replace(/\[[^\]]+\]/g, "").trim();
-    if (!matches.length || !content) return;
-    matches.forEach((match) => {
-      const minutes = Number(match[1]);
-      const seconds = Number(match[2]);
-      const fraction = Number((match[3] ?? "0").padEnd(3, "0"));
-      lines.push({ time: minutes * 60 + seconds + fraction / 1000, text: content });
-    });
-  });
-  return lines.sort((left, right) => left.time - right.time);
 }
 
 function getLyricWindow(track: Track, currentTime: number, offset = 0) {
@@ -1282,6 +1246,8 @@ function App() {
           onSearch={searchManualLyrics}
           onSaveCandidate={saveLyricsCandidate}
           onSavePasted={savePastedLyrics}
+          formatDuration={formatDuration}
+          Icon={Icon}
         />
       )}
     </main>
@@ -1723,62 +1689,6 @@ function ImportPage({
 
 function ImportCard({ icon, title, description, body, actions }: { icon: string; title: string; description: string; body: string; actions: Array<{ label: string; onClick: () => void }> }) {
   return <div className="glass-card import-card"><div className="card-title"><Icon>{icon}</Icon><h2>{title}</h2></div><p>{description}</p><div className="drop-zone"><Icon>{icon === "library_add" ? "library_music" : icon === "lyrics" ? "subtitles" : "add_photo_alternate"}</Icon><span>{body}</span><div className="card-actions">{actions.map((action) => <button key={action.label} type="button" onClick={action.onClick}>{action.label}</button>)}</div></div></div>;
-}
-
-function candidatePreview(candidate: LyricsCandidate) {
-  const text = candidate.syncedLyrics || candidate.plainLyrics || "";
-  return text.split(/\r?\n/).map((line) => line.replace(/\[[^\]]+\]/g, "").trim()).filter(Boolean).slice(0, 2).join(" / ");
-}
-
-function ManualLyricsDialog({
-  state,
-  setState,
-  onClose,
-  onSearch,
-  onSaveCandidate,
-  onSavePasted,
-}: {
-  state: ManualLyricsState;
-  setState: React.Dispatch<React.SetStateAction<ManualLyricsState>>;
-  onClose: () => void;
-  onSearch: () => void;
-  onSaveCandidate: (candidate: LyricsCandidate) => void;
-  onSavePasted: () => void;
-}) {
-  return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <section className="manual-lyrics-dialog">
-        <header>
-          <div><strong>{"\u624b\u52a8\u4fee\u6b63\u6b4c\u8bcd"}</strong><span>{"\u6539\u5173\u952e\u8bcd\u641c\u7d22\uff0c\u6216\u76f4\u63a5\u7c98\u8d34 LRC / \u666e\u901a\u6b4c\u8bcd"}</span></div>
-          <button type="button" onClick={onClose} aria-label={"\u5173\u95ed"}><Icon>close</Icon></button>
-        </header>
-        <div className="manual-search-grid">
-          <label><span>{"\u6b4c\u540d"}</span><input value={state.title} onChange={(event) => setState((current) => ({ ...current, title: event.target.value }))} /></label>
-          <label><span>{"\u6b4c\u624b"}</span><input value={state.artist} onChange={(event) => setState((current) => ({ ...current, artist: event.target.value }))} /></label>
-          <label><span>{"\u4e13\u8f91"}</span><input value={state.album} onChange={(event) => setState((current) => ({ ...current, album: event.target.value }))} /></label>
-          <button type="button" onClick={onSearch} disabled={state.searching}>{state.searching ? "\u641c\u7d22\u4e2d" : "\u641c\u7d22\u5019\u9009"}</button>
-        </div>
-        {state.error && <div className="manual-error">{state.error}</div>}
-        <div className="manual-candidates">
-          {state.candidates.map((candidate, index) => (
-            <button type="button" key={`${candidate.id ?? index}-${candidate.trackName ?? ""}`} onClick={() => onSaveCandidate(candidate)}>
-              <strong>{candidate.trackName || state.title}</strong>
-              <span>{[candidate.artistName, candidate.albumName, candidate.duration ? formatDuration(candidate.duration) : ""].filter(Boolean).join(" · ")}</span>
-              <small>{candidatePreview(candidate) || "\u70b9\u51fb\u4f7f\u7528\u8fd9\u4efd\u6b4c\u8bcd"}</small>
-            </button>
-          ))}
-        </div>
-        <label className="manual-paste">
-          <span>{"\u7c98\u8d34\u6b4c\u8bcd"}</span>
-          <textarea value={state.pasteText} onChange={(event) => setState((current) => ({ ...current, pasteText: event.target.value }))} placeholder={"[00:12.00] \u7b2c\u4e00\u53e5\u6b4c\u8bcd"} />
-        </label>
-        <footer>
-          <button type="button" onClick={onClose}>{"\u53d6\u6d88"}</button>
-          <button type="button" className="primary-pill" onClick={onSavePasted}>{"\u4fdd\u5b58\u7c98\u8d34\u6b4c\u8bcd"}</button>
-        </footer>
-      </section>
-    </div>
-  );
 }
 
 function PlaylistPage({ playlistName, tracks, activeTrack, playing, playTrack }: { playlistName: string; tracks: Track[]; activeTrack: Track; playing: boolean; playTrack: (trackId: string) => void }) {
