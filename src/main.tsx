@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-type View = "main" | "playlist" | "recent" | "import" | "lyrics" | "mini";
+type View = "main" | "playlist" | "recent" | "import" | "lyrics" | "settings" | "mini";
 
 type LyricStyle = {
   presetId: string;
@@ -36,6 +36,7 @@ type LyricStyle = {
   coverRotationSeconds: number;
   lyricDisplayMode: "scroll" | "stack" | "single";
   lyricOffset: number;
+  layoutLocked: boolean;
   backgroundImage?: string;
 };
 
@@ -110,6 +111,7 @@ const defaultLyricStyle: LyricStyle = {
   coverRotationSeconds: 12,
   lyricDisplayMode: "scroll",
   lyricOffset: 0,
+  layoutLocked: true,
 };
 
 const lyricPresets: LyricPreset[] = [
@@ -936,7 +938,6 @@ function App() {
             playTrack={playTrack}
             playAll={() => tracks[0] && playTrack(tracks[0].id)}
             updaterStatus={updaterStatus}
-            checkForUpdates={checkForUpdates}
             downloadUpdate={downloadUpdate}
             installUpdate={installUpdate}
           />
@@ -959,6 +960,15 @@ function App() {
         )}
         {view === "playlist" && (
           <PlaylistPage playlistName={selectedPlaylist} tracks={tracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} />
+        )}
+        {view === "settings" && (
+          <SettingsPage
+            updaterStatus={updaterStatus}
+            checkForUpdates={checkForUpdates}
+            downloadUpdate={downloadUpdate}
+            installUpdate={installUpdate}
+            resetLyricStyle={() => updateLyricStyle(defaultLyricStyle)}
+          />
         )}
         {view === "lyrics" && (
           <LyricsPage
@@ -1149,7 +1159,7 @@ function SideNav({
       <div className="side-footer">
         <button className="new-playlist" type="button"><Icon>add</Icon>{"\u65b0\u5efa\u6b4c\u5355"}</button>
         <div className="side-tools">
-          <button type="button"><Icon>settings</Icon><span>{"\u8bbe\u7f6e"}</span></button>
+          <button type="button" className={currentView === "settings" ? "active" : ""} onClick={() => navigate("settings")}><Icon>settings</Icon><span>{"\u8bbe\u7f6e"}</span></button>
           <button type="button"><Icon>help</Icon><span>{"\u5e2e\u52a9"}</span></button>
         </div>
       </div>
@@ -1158,7 +1168,7 @@ function SideNav({
 }
 
 function TopBar({ view, selectedPlaylist, goBack, goForward }: { view: View; selectedPlaylist: string; goBack: () => void; goForward: () => void }) {
-  const title = view === "import" ? "\u8d44\u6e90\u5bfc\u5165" : view === "recent" ? "\u6700\u8fd1\u64ad\u653e" : view === "playlist" ? selectedPlaylist : "";
+  const title = view === "import" ? "\u8d44\u6e90\u5bfc\u5165" : view === "recent" ? "\u6700\u8fd1\u64ad\u653e" : view === "settings" ? "\u8bbe\u7f6e" : view === "playlist" ? selectedPlaylist : "";
   return (
     <header className="top-bar">
       <div className="top-left">
@@ -1252,7 +1262,6 @@ function LibraryPage({
   playTrack,
   playAll,
   updaterStatus,
-  checkForUpdates,
   downloadUpdate,
   installUpdate,
 }: {
@@ -1262,7 +1271,6 @@ function LibraryPage({
   playTrack: (trackId: string) => void;
   playAll: () => void;
   updaterStatus: UpdaterStatus;
-  checkForUpdates: () => void;
   downloadUpdate: () => void;
   installUpdate: () => void;
 }) {
@@ -1270,7 +1278,6 @@ function LibraryPage({
   return (
     <div className="page-inner library-page">
       <section className="page-heading"><h2>{"\u97f3\u4e50\u5e93"}</h2><p><span>{stats.count}</span><span>•</span><span>{stats.duration}</span></p></section>
-      <UpdateCheckCard status={updaterStatus} checkForUpdates={checkForUpdates} />
       <UpdateBanner status={updaterStatus} downloadUpdate={downloadUpdate} installUpdate={installUpdate} />
       <div className="toolbar-row"><div className="button-row"><button className="primary-pill" type="button" onClick={playAll}>{"\u5168\u90e8\u64ad\u653e"}</button><button className="ghost-pill" type="button"><Icon>shuffle</Icon>{"\u968f\u673a"}</button></div><button className="icon-button" type="button" aria-label={"\u7b5b\u9009"}><Icon>filter_list</Icon></button></div>
       <TrackTable tracks={tracks} activeTrack={activeTrack} playing={playing} playTrack={playTrack} emptyText={"\u97f3\u4e50\u5e93\u8fd8\u662f\u7a7a\u7684\uff0c\u5148\u53bb\u5bfc\u5165\u8d44\u6e90\u6dfb\u52a0\u672c\u5730\u6b4c\u66f2\u3002"} />
@@ -1289,6 +1296,62 @@ function TrackTable({ tracks, activeTrack, playing, playTrack, emptyText }: { tr
           const active = track.id === activeTrack.id;
           return <button className={`track-row ${active ? "active" : ""}`} key={track.id} type="button" onClick={() => playTrack(track.id)}><div className="track-title-cell"><TrackCover track={track} active={active} playing={playing} /><span className={active ? "accent-text" : ""}>{track.title}</span></div><div>{track.artist}</div><div>{track.album}</div><div className="center-cell">{track.added || "\u521a\u521a"}</div><div className="right-cell">{track.durationLabel}</div></button>;
         })}
+      </div>
+    </div>
+  );
+}
+
+function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installUpdate, resetLyricStyle }: { updaterStatus: UpdaterStatus; checkForUpdates: () => void; downloadUpdate: () => void; installUpdate: () => void; resetLyricStyle: () => void }) {
+  const [cacheMessage, setCacheMessage] = useState("");
+  const checking = updaterStatus.status === "checking";
+  const openUserDataFolder = async () => {
+    try {
+      await window.transparentLyrics?.openUserDataFolder?.();
+    } catch (error) {
+      console.warn("[Transparent Lyrics] Failed to open user data folder", error);
+    }
+  };
+  const clearCache = async () => {
+    try {
+      await window.transparentLyrics?.clearAppCache?.();
+      setCacheMessage("缓存已清理，曲库、歌词样式和上传图片会保留");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setCacheMessage(`清理失败：${message}`);
+    }
+  };
+  return (
+    <div className="page-inner settings-page">
+      <section className="page-heading"><h2>{"设置"}</h2><p><span>{"版本、更新、数据和歌词页操作偏好"}</span></p></section>
+      <div className="settings-grid">
+        <section className="glass-panel settings-card">
+          <div className="settings-card-head"><Icon>system_update_alt</Icon><div><h3>{"软件更新"}</h3><p>{`当前版本 v${updaterStatus.currentVersion}`}</p></div></div>
+          <UpdateCheckCard status={updaterStatus} checkForUpdates={checkForUpdates} />
+          <UpdateBanner status={updaterStatus} downloadUpdate={downloadUpdate} installUpdate={installUpdate} />
+          <div className="settings-actions">
+            <button type="button" onClick={checkForUpdates} disabled={checking}><Icon>sync</Icon>{checking ? "检查中" : "检查更新"}</button>
+            <button type="button" onClick={() => window.transparentLyrics?.openReleasesPage?.()}><Icon>open_in_new</Icon>{"打开 Release"}</button>
+          </div>
+        </section>
+        <section className="glass-panel settings-card">
+          <div className="settings-card-head"><Icon>folder_managed</Icon><div><h3>{"数据与缓存"}</h3><p>{"曲库、歌词样式、上传图片保存在本机用户数据中"}</p></div></div>
+          <div className="settings-actions">
+            <button type="button" onClick={openUserDataFolder}><Icon>folder_open</Icon>{"打开数据目录"}</button>
+            <button type="button" onClick={clearCache}><Icon>cleaning_services</Icon>{"清理缓存"}</button>
+          </div>
+          {cacheMessage && <p className="settings-note">{cacheMessage}</p>}
+        </section>
+        <section className="glass-panel settings-card">
+          <div className="settings-card-head"><Icon>lyrics</Icon><div><h3>{"歌词页操作"}</h3><p>{"默认锁定画布，避免误触拖动；位置请在样式面板里调 X / Y"}</p></div></div>
+          <div className="settings-state-row"><span>{"画布拖动"}</span><strong>{"已锁定"}</strong></div>
+          <div className="settings-actions">
+            <button type="button" onClick={resetLyricStyle}><Icon>restart_alt</Icon>{"重置歌词样式"}</button>
+          </div>
+        </section>
+        <section className="glass-panel settings-card">
+          <div className="settings-card-head"><Icon>inventory_2</Icon><div><h3>{"后续风格包"}</h3><p>{"DIY 风格导入导出会放在这里，包括歌词、CD、播放器和背景图片"}</p></div></div>
+          <p className="settings-note">{"下一阶段会增加 .tlstyle 风格包，让别人分享的样式可以直接导入。"}</p>
+        </section>
       </div>
     </div>
   );
@@ -1515,9 +1578,7 @@ function LyricsPage({
   const [panelOpen, setPanelOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [previewPatch, setPreviewPatch] = useState<Partial<LyricStyle>>({});
-  const dragRef = useRef<{ x: number; y: number; clientX: number; clientY: number; nextX: number; nextY: number } | null>(null);
   const lyricStackRef = useRef<HTMLDivElement>(null);
-  const dragFrameRef = useRef<number | null>(null);
   const isTuning = Object.keys(previewPatch).length > 0;
   const style = normalizeLyricStyle({ ...lyricStyle, ...previewPatch });
   const lyricWindow = getLyricWindow(activeTrack, currentTime, style.lyricOffset);
@@ -1579,37 +1640,9 @@ function LyricsPage({
     color: style.inactiveColor,
     opacity: style.inactiveOpacity,
   };
-  const finishLyricDrag = () => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    dragRef.current = null;
-    if (dragFrameRef.current !== null) {
-      window.cancelAnimationFrame(dragFrameRef.current);
-      dragFrameRef.current = null;
-    }
-    lyricStackRef.current?.classList.remove("dragging");
-    updateLyricStyle({ x: drag.nextX, y: drag.nextY });
-  };
   return (
     <div
       className={`lyrics-page-native preset-${style.presetId} mode-${style.lyricDisplayMode} ${style.scanline ? "has-scanline" : ""} ${isTuning ? "is-tuning" : ""}`}
-      onPointerMove={(event) => {
-        const drag = dragRef.current;
-        if (!drag) return;
-        const nextX = Math.max(-40, Math.min(40, drag.x + ((event.clientX - drag.clientX) / window.innerWidth) * 100));
-        const nextY = Math.max(-40, Math.min(40, drag.y + ((event.clientY - drag.clientY) / window.innerHeight) * 100));
-        drag.nextX = Number(nextX.toFixed(1));
-        drag.nextY = Number(nextY.toFixed(1));
-        if (dragFrameRef.current !== null) return;
-        dragFrameRef.current = window.requestAnimationFrame(() => {
-          dragFrameRef.current = null;
-          const current = dragRef.current;
-          if (!current || !lyricStackRef.current) return;
-          lyricStackRef.current.style.transform = buildLyricTransform(current.nextX, current.nextY);
-        });
-      }}
-      onPointerUp={finishLyricDrag}
-      onPointerCancel={finishLyricDrag}
     >
       <div className="lyrics-bg" style={{ backgroundImage: `url(${background})`, filter: `blur(${style.backgroundBlur}px) saturate(${style.backgroundSaturation}%)` }} />
       <div className="lyrics-dim" style={{ background: `rgba(0, 0, 0, ${style.backgroundDim / 100})` }} />
@@ -1632,13 +1665,8 @@ function LyricsPage({
       )}
       <div
         ref={lyricStackRef}
-        className="lyric-stack"
+        className={`lyric-stack ${style.layoutLocked ? "locked" : ""}`}
         style={lyricTextStyle}
-        onPointerDown={(event) => {
-          event.currentTarget.setPointerCapture(event.pointerId);
-          event.currentTarget.classList.add("dragging");
-          dragRef.current = { x: style.x, y: style.y, clientX: event.clientX, clientY: event.clientY, nextX: style.x, nextY: style.y };
-        }}
       >
         {style.lyricDisplayMode === "single" ? (
           <h2 key={lyricWindow.active} className="single-line" style={activeTextStyle}>{lyricWindow.active}</h2>

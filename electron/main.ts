@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from "electron";
 import log from "electron-log";
 import updaterPkg, { type UpdateInfo } from "electron-updater";
 import fs from "node:fs/promises";
@@ -18,6 +18,7 @@ const appIconPath = isDev
 const audioExtensions = new Set([".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac"]);
 let mainWindow: BrowserWindow | null = null;
 let pendingUpdateVersion: string | undefined;
+const releasePageUrl = "https://github.com/Allen050121/transparent-lyrics/releases";
 
 type UpdaterStatus =
   | { status: "idle"; currentVersion: string }
@@ -317,6 +318,27 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("app:get-version", () => app.getVersion());
+
+  ipcMain.handle("app:open-user-data", async () => {
+    await fs.mkdir(app.getPath("userData"), { recursive: true });
+    await shell.openPath(app.getPath("userData"));
+  });
+
+  ipcMain.handle("app:open-releases", async () => {
+    await shell.openExternal(releasePageUrl);
+  });
+
+  ipcMain.handle("app:clear-cache", async () => {
+    const cacheTargets = [
+      path.join(app.getPath("userData"), "Cache"),
+      path.join(app.getPath("userData"), "Code Cache"),
+      path.join(app.getPath("userData"), "GPUCache"),
+      path.join(app.getPath("userData"), "DawnCache"),
+      path.join(app.getPath("userData"), "style-package-cache"),
+    ];
+    await Promise.allSettled(cacheTargets.map((targetPath) => fs.rm(targetPath, { recursive: true, force: true })));
+    return { cleared: true };
+  });
 
   ipcMain.handle("updater:check", async () => {
     if (isDev) {

@@ -14,6 +14,9 @@ interface Window {
     toggleMaximizeWindow?: () => Promise<void>;
     closeWindow?: () => Promise<void>;
     getAppVersion?: () => Promise<string>;
+    openUserDataFolder?: () => Promise<void>;
+    openReleasesPage?: () => Promise<void>;
+    clearAppCache?: () => Promise<{ cleared: boolean }>;
     checkForUpdates?: () => Promise<UpdaterStatus>;
     downloadUpdate?: () => Promise<UpdaterStatus>;
     installUpdate?: () => Promise<void>;
