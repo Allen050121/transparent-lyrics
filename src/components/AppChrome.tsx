@@ -43,13 +43,18 @@ export function SideNav({
   ];
   return (
     <aside className="side-nav">
-      <div className="brand-mark"><span>TL</span><b>Transparent Lyrics</b></div>
-      <nav>
-        {menu.map((item) => <button className={currentView === item.view ? "active" : ""} key={item.label} type="button" onClick={() => navigate(item.view)}><Icon>{item.icon}</Icon>{item.label}</button>)}
-      </nav>
-      <div className="playlist-block"><p>{"\u6b4c\u5355"}</p>{playlists.map((item) => <button className={currentView === "playlist" && selectedPlaylist === item.label ? "active" : ""} key={item.label} type="button" onClick={() => navigatePlaylist(item.label)}><Icon>{item.icon}</Icon>{item.label}</button>)}</div>
-      <button className="new-playlist" type="button"><Icon>add</Icon>{"\u65b0\u5efa\u6b4c\u5355"}</button>
-      <div className="side-footer">
+      <div className="brand-block"><h1>TL</h1><p>Transparent Lyrics</p></div>
+      <div className="side-scroll">
+        <nav className="nav-list">
+          {menu.map((item) => <button className={`nav-item ${currentView === item.view ? "active" : ""}`} key={item.label} type="button" onClick={() => navigate(item.view)}><Icon>{item.icon}</Icon>{item.label}</button>)}
+        </nav>
+        <div className="nav-section-title">{"\u6b4c\u5355"}</div>
+        <nav className="nav-list">
+          {playlists.map((item) => <button className={`nav-item ${currentView === "playlist" && selectedPlaylist === item.label ? "active" : ""}`} key={item.label} type="button" onClick={() => navigatePlaylist(item.label)}><Icon>{item.icon}</Icon>{item.label}</button>)}
+        </nav>
+        <button className="new-playlist" type="button"><Icon>add</Icon>{"\u65b0\u5efa\u6b4c\u5355"}</button>
+      </div>
+      <div className="side-footer side-tools">
         <button type="button" className={currentView === "settings" ? "active" : ""} onClick={() => navigate("settings")}><Icon>settings</Icon>{"\u8bbe\u7f6e"}</button>
         <button type="button"><Icon>help</Icon>{"\u5e2e\u52a9"}</button>
       </div>
@@ -69,9 +74,13 @@ export function TopBar({ view, selectedPlaylist, goBack, goForward }: { view: Vi
   };
   return (
     <header className="top-bar">
-      <div className="history-buttons"><button type="button" onClick={goBack}><Icon>chevron_left</Icon></button><button type="button" onClick={goForward}><Icon>chevron_right</Icon></button></div>
-      <h1>{titles[view]}</h1>
-      <div className="top-actions">
+      <div className="top-left">
+        <button className="round-nav" type="button" onClick={goBack}><Icon>chevron_left</Icon></button>
+        <button className="round-nav" type="button" onClick={goForward}><Icon>chevron_right</Icon></button>
+        <h2>{titles[view]}</h2>
+      </div>
+      <div className="top-right">
+        <label className="search-pill compact"><Icon>search</Icon><input aria-label={"\u641c\u7d22"} placeholder={"\u641c\u7d22\u6b4c\u66f2"} /></label>
         <button type="button" aria-label={"\u641c\u7d22"}><Icon>search</Icon></button>
         <button type="button" aria-label={"\u8d26\u6237"}><Icon>account_circle</Icon></button>
         <button type="button" aria-label={"\u901a\u77e5"}><Icon>notifications</Icon></button>
