@@ -19,6 +19,8 @@ const audioExtensions = new Set([".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac"
 let mainWindow: BrowserWindow | null = null;
 let pendingUpdateVersion: string | undefined;
 const releasePageUrl = "https://github.com/Allen050121/transparent-lyrics/releases";
+const storageConfigFile = "storage.json";
+const defaultStorageRoot = "D:\\TransparentLyricsData";
 
 type UpdaterStatus =
   | { status: "idle"; currentVersion: string }
@@ -103,12 +105,71 @@ function configureAutoUpdater() {
 
 async function copyToLibrary(filePath: string, index: number) {
   const parsed = path.parse(filePath);
-  const mediaDir = path.join(app.getPath("userData"), "media-library");
+  const mediaDir = path.join(await getStorageRoot(), "media-library");
   await fs.mkdir(mediaDir, { recursive: true });
   const safeName = `${Date.now()}-${index}${parsed.ext.toLowerCase()}`;
   const storedPath = path.join(mediaDir, safeName);
   await fs.copyFile(filePath, storedPath);
   return storedPath;
+}
+
+async function getStorageRoot() {
+  const configPath = path.join(app.getPath("userData"), storageConfigFile);
+  try {
+    const parsed = JSON.parse(await fs.readFile(configPath, "utf8")) as { storageRoot?: string };
+    if (parsed.storageRoot && path.isAbsolute(parsed.storageRoot)) {
+      return parsed.storageRoot;
+    }
+  } catch {
+    // Use the default below when no storage config exists yet.
+  }
+  return defaultStorageRoot;
+}
+
+async function writeStorageRoot(storageRoot: string) {
+  if (!path.isAbsolute(storageRoot)) {
+    throw new Error("Storage directory must be an absolute path.");
+  }
+  await fs.mkdir(storageRoot, { recursive: true });
+  await fs.mkdir(app.getPath("userData"), { recursive: true });
+  await fs.writeFile(
+    path.join(app.getPath("userData"), storageConfigFile),
+    JSON.stringify({ storageRoot }, null, 2),
+    "utf8",
+  );
+  return storageRoot;
+}
+
+async function getStorageInfo() {
+  const storageRoot = await getStorageRoot();
+  await fs.mkdir(storageRoot, { recursive: true });
+  return {
+    storageRoot,
+    mediaDir: path.join(storageRoot, "media-library"),
+    legacyMediaDir: path.join(app.getPath("userData"), "media-library"),
+    isDefault: storageRoot === defaultStorageRoot,
+  };
+}
+
+async function copyDirectoryContents(sourceDir: string, targetDir: string) {
+  try {
+    const entries = await fs.readdir(sourceDir, { withFileTypes: true });
+    await fs.mkdir(targetDir, { recursive: true });
+    await Promise.all(entries.map(async (entry) => {
+      const sourcePath = path.join(sourceDir, entry.name);
+      const targetPath = path.join(targetDir, entry.name);
+      if (entry.isDirectory()) {
+        await copyDirectoryContents(sourcePath, targetPath);
+        return;
+      }
+      if (entry.isFile()) {
+        await fs.copyFile(sourcePath, targetPath);
+      }
+    }));
+  } catch (error: any) {
+    if (error?.code === "ENOENT") return;
+    throw error;
+  }
 }
 
 function parseTitleArtistFromFilename(filePath: string) {
@@ -334,10 +395,37 @@ app.whenReady().then(() => {
       path.join(app.getPath("userData"), "Code Cache"),
       path.join(app.getPath("userData"), "GPUCache"),
       path.join(app.getPath("userData"), "DawnCache"),
-      path.join(app.getPath("userData"), "style-package-cache"),
+      path.join(await getStorageRoot(), "cache"),
+      path.join(await getStorageRoot(), "style-package-cache"),
     ];
     await Promise.allSettled(cacheTargets.map((targetPath) => fs.rm(targetPath, { recursive: true, force: true })));
     return { cleared: true };
+  });
+
+  ipcMain.handle("storage:get-info", async () => getStorageInfo());
+
+  ipcMain.handle("storage:choose-root", async () => {
+    const current = await getStorageInfo();
+    const result = await dialog.showOpenDialog({
+      title: "选择 TransparentLyrics 数据存储目录",
+      defaultPath: current.storageRoot,
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || !result.filePaths[0]) return current;
+    await writeStorageRoot(result.filePaths[0]);
+    return getStorageInfo();
+  });
+
+  ipcMain.handle("storage:open-root", async () => {
+    const info = await getStorageInfo();
+    await shell.openPath(info.storageRoot);
+    return info;
+  });
+
+  ipcMain.handle("storage:migrate-legacy-media", async () => {
+    const info = await getStorageInfo();
+    await copyDirectoryContents(info.legacyMediaDir, info.mediaDir);
+    return info;
   });
 
   ipcMain.handle("updater:check", async () => {

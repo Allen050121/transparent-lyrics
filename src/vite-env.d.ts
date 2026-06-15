@@ -17,6 +17,10 @@ interface Window {
     openUserDataFolder?: () => Promise<void>;
     openReleasesPage?: () => Promise<void>;
     clearAppCache?: () => Promise<{ cleared: boolean }>;
+    getStorageInfo?: () => Promise<StorageInfo>;
+    chooseStorageRoot?: () => Promise<StorageInfo>;
+    openStorageRoot?: () => Promise<StorageInfo>;
+    migrateLegacyMedia?: () => Promise<StorageInfo>;
     checkForUpdates?: () => Promise<UpdaterStatus>;
     downloadUpdate?: () => Promise<UpdaterStatus>;
     installUpdate?: () => Promise<void>;
@@ -35,6 +39,13 @@ type ImportedAudioFile = {
   path: string;
   originalPath?: string;
   url?: string;
+};
+
+type StorageInfo = {
+  storageRoot: string;
+  mediaDir: string;
+  legacyMediaDir: string;
+  isDefault: boolean;
 };
 
 type AudioTagInfo = {

@@ -791,6 +791,21 @@ function App() {
     writeCustomLyricPresets(nextPresets);
   }, [customLyricPresets]);
 
+  const migrateLegacyTrackPaths = useCallback((info: StorageInfo) => {
+    const normalizeDir = (value: string) => value.replace(/[\\/]+$/, "");
+    const legacyDir = normalizeDir(info.legacyMediaDir);
+    const mediaDir = normalizeDir(info.mediaDir);
+    const legacyDirLower = legacyDir.toLowerCase();
+    let changed = false;
+    const nextTracks = tracks.map((track) => {
+      if (!track.path || !track.path.toLowerCase().startsWith(legacyDirLower)) return track;
+      const relativePath = track.path.slice(legacyDir.length).replace(/^[\\/]+/, "");
+      changed = true;
+      return { ...track, path: `${mediaDir}\\${relativePath}` };
+    });
+    if (changed) commitTracks(nextTracks);
+  }, [commitTracks, tracks]);
+
   const downloadUpdate = useCallback(async () => {
     try {
       await window.transparentLyrics?.downloadUpdate?.();
@@ -968,6 +983,7 @@ function App() {
             downloadUpdate={downloadUpdate}
             installUpdate={installUpdate}
             resetLyricStyle={() => updateLyricStyle(defaultLyricStyle)}
+            onLegacyMediaMigrated={migrateLegacyTrackPaths}
           />
         )}
         {view === "lyrics" && (
@@ -1301,9 +1317,16 @@ function TrackTable({ tracks, activeTrack, playing, playTrack, emptyText }: { tr
   );
 }
 
-function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installUpdate, resetLyricStyle }: { updaterStatus: UpdaterStatus; checkForUpdates: () => void; downloadUpdate: () => void; installUpdate: () => void; resetLyricStyle: () => void }) {
+function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installUpdate, resetLyricStyle, onLegacyMediaMigrated }: { updaterStatus: UpdaterStatus; checkForUpdates: () => void; downloadUpdate: () => void; installUpdate: () => void; resetLyricStyle: () => void; onLegacyMediaMigrated: (info: StorageInfo) => void }) {
   const [cacheMessage, setCacheMessage] = useState("");
+  const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
+  const [storageMessage, setStorageMessage] = useState("");
   const checking = updaterStatus.status === "checking";
+  useEffect(() => {
+    window.transparentLyrics?.getStorageInfo?.()
+      .then((info) => setStorageInfo(info))
+      .catch((error) => console.warn("[Transparent Lyrics] Failed to read storage info", error));
+  }, []);
   const openUserDataFolder = async () => {
     try {
       await window.transparentLyrics?.openUserDataFolder?.();
@@ -1320,6 +1343,37 @@ function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installU
       setCacheMessage(`清理失败：${message}`);
     }
   };
+  const chooseStorageRoot = async () => {
+    try {
+      const info = await window.transparentLyrics?.chooseStorageRoot?.();
+      if (info) setStorageInfo(info);
+      setStorageMessage("新的导入歌曲会保存到这个目录");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setStorageMessage(`选择目录失败：${message}`);
+    }
+  };
+  const openStorageRoot = async () => {
+    try {
+      const info = await window.transparentLyrics?.openStorageRoot?.();
+      if (info) setStorageInfo(info);
+    } catch (error) {
+      console.warn("[Transparent Lyrics] Failed to open storage root", error);
+    }
+  };
+  const migrateLegacyMedia = async () => {
+    try {
+      const info = await window.transparentLyrics?.migrateLegacyMedia?.();
+      if (info) {
+        setStorageInfo(info);
+        onLegacyMediaMigrated(info);
+      }
+      setStorageMessage("旧媒体库已复制到当前存储目录，曲库路径已切换，原文件会保留");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setStorageMessage(`迁移失败：${message}`);
+    }
+  };
   return (
     <div className="page-inner settings-page">
       <section className="page-heading"><h2>{"设置"}</h2><p><span>{"版本、更新、数据和歌词页操作偏好"}</span></p></section>
@@ -1334,11 +1388,19 @@ function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installU
           </div>
         </section>
         <section className="glass-panel settings-card">
-          <div className="settings-card-head"><Icon>folder_managed</Icon><div><h3>{"数据与缓存"}</h3><p>{"曲库、歌词样式、上传图片保存在本机用户数据中"}</p></div></div>
+          <div className="settings-card-head"><Icon>folder_managed</Icon><div><h3>{"数据与缓存"}</h3><p>{"配置保存在系统用户目录；歌曲和后续媒体缓存默认放在 D 盘"}</p></div></div>
+          <div className="settings-path-box">
+            <span>{"媒体存储目录"}</span>
+            <strong>{storageInfo?.storageRoot ?? "正在读取..."}</strong>
+          </div>
           <div className="settings-actions">
-            <button type="button" onClick={openUserDataFolder}><Icon>folder_open</Icon>{"打开数据目录"}</button>
+            <button type="button" onClick={openStorageRoot}><Icon>folder_open</Icon>{"打开媒体目录"}</button>
+            <button type="button" onClick={chooseStorageRoot}><Icon>drive_file_move</Icon>{"更改存储位置"}</button>
+            <button type="button" onClick={migrateLegacyMedia}><Icon>move_down</Icon>{"迁移旧媒体"}</button>
+            <button type="button" onClick={openUserDataFolder}><Icon>settings_applications</Icon>{"打开配置目录"}</button>
             <button type="button" onClick={clearCache}><Icon>cleaning_services</Icon>{"清理缓存"}</button>
           </div>
+          {storageMessage && <p className="settings-note">{storageMessage}</p>}
           {cacheMessage && <p className="settings-note">{cacheMessage}</p>}
         </section>
         <section className="glass-panel settings-card">

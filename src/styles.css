@@ -838,6 +838,29 @@ button {
   margin-top: 18px;
 }
 
+.settings-path-box {
+  display: grid;
+  gap: 5px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .055);
+}
+
+.settings-path-box span {
+  color: rgba(231, 238, 244, .56);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.settings-path-box strong {
+  color: #e7eef4;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .settings-actions button {
   height: 38px;
   display: inline-flex;
