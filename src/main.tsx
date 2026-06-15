@@ -70,6 +70,18 @@ type Track = {
   lyricStyle: LyricStyle;
 };
 
+type ManualLyricsState = {
+  open: boolean;
+  trackId: string;
+  title: string;
+  artist: string;
+  album: string;
+  pasteText: string;
+  searching: boolean;
+  error: string;
+  candidates: LyricsCandidate[];
+};
+
 type LyricPreset = {
   id: string;
   name: string;
@@ -462,6 +474,17 @@ function App() {
   const [matchingLyrics, setMatchingLyrics] = useState(false);
   const [globalLyricStyle, setGlobalLyricStyle] = useState<LyricStyle>(readGlobalLyricStyle);
   const [customLyricPresets, setCustomLyricPresets] = useState<LyricPreset[]>(readCustomLyricPresets);
+  const [manualLyrics, setManualLyrics] = useState<ManualLyricsState>({
+    open: false,
+    trackId: "",
+    title: "",
+    artist: "",
+    album: "",
+    pasteText: "",
+    searching: false,
+    error: "",
+    candidates: [],
+  });
   const [imageImportTarget, setImageImportTarget] = useState<"background" | "cover">("background");
   const [updaterStatus, setUpdaterStatus] = useState<UpdaterStatus>({ status: "idle", currentVersion: "0.1.0" });
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -568,6 +591,123 @@ function App() {
     };
   }, []);
 
+  const applyLyricsToTrack = useCallback((trackId: string, lyrics: TrackLyrics, metadata?: Partial<Track>) => {
+    commitTracks(tracks.map((track) =>
+      track.id === trackId
+        ? ({
+            ...track,
+            ...(metadata?.title ? { title: metadata.title } : {}),
+            ...(metadata?.artist ? { artist: metadata.artist } : {}),
+            ...(metadata?.album ? { album: metadata.album } : {}),
+            ...(metadata?.duration ? { duration: metadata.duration, durationLabel: formatDuration(metadata.duration) } : {}),
+            ...(metadata?.lrcPath ? { lrcPath: metadata.lrcPath } : {}),
+            lyrics,
+          })
+        : track,
+    ));
+  }, [commitTracks, tracks]);
+
+  const openManualLyrics = useCallback((track: Track) => {
+    setManualLyrics({
+      open: true,
+      trackId: track.id,
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      pasteText: track.lyrics?.syncedText || track.lyrics?.plainText || "",
+      searching: false,
+      error: track.lyrics?.error || "",
+      candidates: [],
+    });
+  }, []);
+
+  const closeManualLyrics = useCallback(() => {
+    setManualLyrics((current) => ({ ...current, open: false, searching: false }));
+  }, []);
+
+  const searchManualLyrics = useCallback(async () => {
+    const track = tracks.find((item) => item.id === manualLyrics.trackId);
+    if (!track || !window.transparentLyrics?.searchLyrics) return;
+    setManualLyrics((current) => ({ ...current, searching: true, error: "", candidates: [] }));
+    const result = await window.transparentLyrics.searchLyrics({
+      title: manualLyrics.title.trim() || track.title,
+      artist: manualLyrics.artist.trim() || undefined,
+      album: manualLyrics.album.trim() || undefined,
+      duration: track.duration,
+    });
+    if (result.status === "matched") {
+      setManualLyrics((current) => ({
+        ...current,
+        searching: false,
+        candidates: result.candidates?.length
+          ? result.candidates
+          : [{
+              id: result.id,
+              trackName: result.trackName,
+              artistName: result.artistName,
+              albumName: result.albumName,
+              duration: result.duration,
+              syncedLyrics: result.syncedLyrics,
+              plainLyrics: result.plainLyrics,
+            }],
+      }));
+      return;
+    }
+    if (result.status === "not-found") {
+      setManualLyrics((current) => ({
+        ...current,
+        searching: false,
+        candidates: result.candidates ?? [],
+        error: result.candidates?.length ? "" : "\u6ca1\u6709\u627e\u5230\u5019\u9009\u6b4c\u8bcd\uff0c\u53ef\u4ee5\u6539\u5173\u952e\u8bcd\u6216\u7c98\u8d34 LRC\u3002",
+      }));
+      return;
+    }
+    setManualLyrics((current) => ({
+      ...current,
+      searching: false,
+      error: result.error || "\u6b4c\u8bcd\u641c\u7d22\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002",
+    }));
+  }, [manualLyrics.album, manualLyrics.artist, manualLyrics.title, manualLyrics.trackId, tracks]);
+
+  const saveLyricsCandidate = useCallback((candidate: LyricsCandidate) => {
+    if (!manualLyrics.trackId) return;
+    applyLyricsToTrack(
+      manualLyrics.trackId,
+      {
+        source: "lrclib",
+        status: "matched",
+        syncedText: candidate.syncedLyrics,
+        plainText: candidate.plainLyrics,
+        matchedAt: new Date().toISOString(),
+        providerId: candidate.id,
+      },
+      {
+        title: candidate.trackName,
+        artist: candidate.artistName,
+        album: candidate.albumName,
+        duration: candidate.duration,
+      },
+    );
+    closeManualLyrics();
+  }, [applyLyricsToTrack, closeManualLyrics, manualLyrics.trackId]);
+
+  const savePastedLyrics = useCallback(() => {
+    const text = manualLyrics.pasteText.trim();
+    if (!manualLyrics.trackId || !text) {
+      setManualLyrics((current) => ({ ...current, error: "\u8bf7\u5148\u7c98\u8d34 LRC \u6216\u666e\u901a\u6b4c\u8bcd\u6587\u672c\u3002" }));
+      return;
+    }
+    const isSynced = parseLrcLines(text).length > 0;
+    applyLyricsToTrack(manualLyrics.trackId, {
+      source: "manual",
+      status: "matched",
+      syncedText: isSynced ? text : undefined,
+      plainText: isSynced ? undefined : text,
+      matchedAt: new Date().toISOString(),
+    });
+    closeManualLyrics();
+  }, [applyLyricsToTrack, closeManualLyrics, manualLyrics.pasteText, manualLyrics.trackId]);
+
   const matchLyricsForTracks = useCallback(
     async (targetTracks: Track[]) => {
       if (!targetTracks.length) return targetTracks;
@@ -589,11 +729,12 @@ function App() {
     commitTracks(nextTracks);
   }, [commitTracks, matchLyricsForTracks, tracks]);
 
-  const retryActiveLyrics = useCallback(async () => {
-    if (!activeTrack || activeTrack.id.startsWith("demo-")) return;
-    const matched = await matchLyricsForTrack(activeTrack);
+  const retryLyricsForTrack = useCallback(async (trackId: string) => {
+    const targetTrack = tracks.find((track) => track.id === trackId);
+    if (!targetTrack || targetTrack.id.startsWith("demo-")) return;
+    const matched = await matchLyricsForTrack(targetTrack);
     commitTracks(tracks.map((track) => (track.id === matched.id ? matched : track)));
-  }, [activeTrack, commitTracks, matchLyricsForTrack, tracks]);
+  }, [commitTracks, matchLyricsForTrack, tracks]);
 
   const ensurePlayableUrl = useCallback(async (track: Track) => {
     if (track.url && !track.url.startsWith("blob:")) return track.url;
@@ -697,14 +838,21 @@ function App() {
   const importLrc = useCallback(async () => {
     const paths = await window.transparentLyrics?.openLrcFiles?.();
     if (paths?.length && activeTrack) {
-      const nextTracks = tracks.map((track) =>
-        track.id === activeTrack.id ? { ...track, lrcPath: paths[0] } : track,
-      );
-      commitTracks(nextTracks);
+      const lrcText = await window.transparentLyrics?.readLrcFile?.(paths[0]);
+      if (lrcText) {
+        const isSynced = parseLrcLines(lrcText).length > 0;
+        applyLyricsToTrack(activeTrack.id, {
+          source: "manual",
+          status: "matched",
+          syncedText: isSynced ? lrcText : undefined,
+          plainText: isSynced ? undefined : lrcText,
+          matchedAt: new Date().toISOString(),
+        }, { lrcPath: paths[0] });
+      }
       return;
     }
     lrcInputRef.current?.click();
-  }, [activeTrack, commitTracks, tracks]);
+  }, [activeTrack, applyLyricsToTrack]);
 
   const applyBackgroundImage = useCallback((imageUrl: string) => {
     const nextGlobalStyle = normalizeLyricStyle({ ...globalLyricStyle, backgroundImage: imageUrl });
@@ -986,7 +1134,8 @@ function App() {
             importBackgroundImage={importBackgroundImage}
             importCoverImage={importCoverImage}
             matchAllLyrics={matchAllLyrics}
-            retryActiveLyrics={retryActiveLyrics}
+            retryLyricsForTrack={retryLyricsForTrack}
+            openManualLyrics={openManualLyrics}
           />
         )}
         {view === "playlist" && (
@@ -1087,7 +1236,27 @@ function App() {
           setActiveTrackId(matched[0].id);
         }}
       />
-      <input ref={lrcInputRef} className="hidden-input" type="file" accept=".lrc" multiple />
+      <input
+        ref={lrcInputRef}
+        className="hidden-input"
+        type="file"
+        accept=".lrc"
+        multiple
+        onChange={async (event) => {
+          const file = event.currentTarget.files?.[0];
+          if (!file || !activeTrack) return;
+          const text = await file.text();
+          const isSynced = parseLrcLines(text).length > 0;
+          applyLyricsToTrack(activeTrack.id, {
+            source: "manual",
+            status: "matched",
+            syncedText: isSynced ? text : undefined,
+            plainText: isSynced ? undefined : text,
+            matchedAt: new Date().toISOString(),
+          });
+          event.currentTarget.value = "";
+        }}
+      />
       <input
         ref={imageInputRef}
         className="hidden-input"
@@ -1105,6 +1274,16 @@ function App() {
           event.currentTarget.value = "";
         }}
       />
+      {manualLyrics.open && (
+        <ManualLyricsDialog
+          state={manualLyrics}
+          setState={setManualLyrics}
+          onClose={closeManualLyrics}
+          onSearch={searchManualLyrics}
+          onSaveCandidate={saveLyricsCandidate}
+          onSavePasted={savePastedLyrics}
+        />
+      )}
     </main>
   );
 }
@@ -1482,14 +1661,124 @@ function RecentPage({ tracks, activeTrack, playing, playTrack }: { tracks: Track
   return <div className="page-inner recent-page"><div className="recent-table-head"><span>{"\u6b4c\u66f2\u6807\u9898"}</span><span>{"\u827a\u4eba"}</span><span>{"\u4e13\u8f91"}</span><span>{"\u64ad\u653e\u4e8e"}</span><span>{"\u65f6\u957f"}</span></div><div className="recent-list">{!tracks.length && <div className="empty-state">{"\u6682\u65e0\u6700\u8fd1\u64ad\u653e\uff0c\u5f00\u59cb\u542c\u6b4c\u540e\u4f1a\u81ea\u52a8\u8bb0\u5f55\u6700\u8fd1 200 \u9996\u3002"}</div>}{tracks.map((track) => { const active = track.id === activeTrack.id; return <button className={`recent-row ${active ? "active" : ""}`} type="button" key={track.id} onClick={() => playTrack(track.id)}><span className="recent-title"><TrackCover track={track} active={active} playing={playing} />{track.title}</span><span>{track.artist}</span><span>{track.album}</span><span>{"\u521a\u521a"}</span><span>{track.durationLabel}</span></button>; })}</div></div>;
 }
 
-function ImportPage({ tracks, matchingLyrics, importAudio, importFolder, importLrc, importBackgroundImage, importCoverImage, matchAllLyrics, retryActiveLyrics }: { tracks: Track[]; matchingLyrics: boolean; importAudio: () => void; importFolder: () => void; importLrc: () => void; importBackgroundImage: () => void; importCoverImage: () => void; matchAllLyrics: () => void; retryActiveLyrics: () => void }) {
+function ImportPage({
+  tracks,
+  matchingLyrics,
+  importAudio,
+  importFolder,
+  importLrc,
+  importBackgroundImage,
+  importCoverImage,
+  matchAllLyrics,
+  retryLyricsForTrack,
+  openManualLyrics,
+}: {
+  tracks: Track[];
+  matchingLyrics: boolean;
+  importAudio: () => void;
+  importFolder: () => void;
+  importLrc: () => void;
+  importBackgroundImage: () => void;
+  importCoverImage: () => void;
+  matchAllLyrics: () => void;
+  retryLyricsForTrack: (trackId: string) => void;
+  openManualLyrics: (track: Track) => void;
+}) {
   const localTracks = tracks.filter((track) => !track.id.startsWith("demo-"));
   const matchedCount = localTracks.filter((track) => track.lyrics?.status === "matched").length;
-  return <div className="page-inner import-page">{localTracks.length > 0 && <div className="success-banner"><Icon>check_circle</Icon><span>{"\u5df2\u5bfc\u5165 "}{localTracks.length}{" \u9996\u672c\u5730\u6b4c\u66f2\uff0c"}{matchedCount}{" \u9996\u5df2\u5339\u914d\u6b4c\u8bcd"}</span></div>}<div className="import-grid"><ImportCard icon="library_add" title={"\u5bfc\u5165\u672c\u5730\u6b4c\u66f2"} description={"\u9009\u62e9\u5355\u9996\u6b4c\u66f2\uff0c\u6216\u626b\u63cf\u6574\u4e2a\u97f3\u4e50\u6587\u4ef6\u5939\u3002"} body={"\u5bfc\u5165\u540e\u81ea\u52a8\u5c1d\u8bd5\u5339\u914d\u6b4c\u8bcd"} actions={[{ label: "\u9009\u62e9\u6b4c\u66f2\u6587\u4ef6", onClick: importAudio }, { label: "\u9009\u62e9\u97f3\u4e50\u6587\u4ef6\u5939", onClick: importFolder }]} /><ImportCard icon="lyrics" title={"\u6b4c\u8bcd\u8865\u5168"} description={"\u652f\u6301 LRC \u5bfc\u5165\uff0c\u4e5f\u53ef\u6279\u91cf\u5728\u7ebf\u5339\u914d\u672c\u5730\u6b4c\u66f2\u3002"} body={matchingLyrics ? "\u6b63\u5728\u5339\u914d\u6b4c\u8bcd..." : "\u4f18\u5148\u4fdd\u5b58\u540c\u6b65\u6b4c\u8bcd"} actions={[{ label: "\u6279\u91cf\u8865\u5168\u6b4c\u8bcd", onClick: matchAllLyrics }, { label: "\u5bfc\u5165 LRC \u6587\u4ef6", onClick: importLrc }]} /><ImportCard icon="wallpaper" title={"\u4e0a\u4f20\u58c1\u7eb8"} description={"\u4e3a\u6b4c\u8bcd\u9875\u9762\u8bbe\u7f6e\u4e13\u5c5e\u80cc\u666f\u56fe\u3002"} body={"\u652f\u6301 JPG\u3001PNG \u7b49\u56fe\u7247"} actions={[{ label: "\u9009\u62e9\u80cc\u666f\u56fe", onClick: importBackgroundImage }]} /><ImportCard icon="image" title={"\u5173\u8054\u5c01\u9762\u56fe"} description={"\u4e3a\u5f53\u524d\u6b4c\u66f2\u8865\u5145\u5c01\u9762\uff0c\u4e0d\u4f1a\u8986\u76d6\u6b4c\u8bcd\u80cc\u666f\u3002"} body={"\u5c01\u9762\u7528\u4e8e\u5e95\u90e8\u64ad\u653e\u5668\u548c\u5531\u7247\u52a8\u6548"} actions={[{ label: "\u9009\u62e9\u5c01\u9762\u56fe", onClick: importCoverImage }]} /></div><section className="resource-section"><div className="section-title-row"><h3>{"\u5df2\u5bfc\u5165\u8d44\u6e90"}</h3><label>{"\u663e\u793a:"}<select><option>{"\u5168\u90e8"}</option></select></label></div><div className="glass-panel resource-table"><div className="resource-head"><span>{"\u6b4c\u66f2\u540d\u79f0"}</span><span>{"\u683c\u5f0f"}</span><span>{"\u6b4c\u8bcd\u72b6\u6001"}</span><span>{"\u80cc\u666f\u72b6\u6001"}</span><span>{"\u5c01\u9762"}</span><span>{"\u64cd\u4f5c"}</span></div>{!localTracks.length && <div className="empty-state">{"\u8fd8\u6ca1\u6709\u5bfc\u5165\u8d44\u6e90\u3002"}</div>}{localTracks.map((track) => <div className="resource-row" key={track.id}><span className="resource-title"><span className="note-square"><Icon>music_note</Icon></span><span><b>{track.title}</b><small>{track.artist}</small></span></span><span>{track.format}</span><span className={track.lyrics?.status === "matched" ? "ok-text" : ""}>{lyricStatusLabel(track.lyrics?.status)}</span><span className={track.lyricStyle.backgroundImage ? "ok-text" : ""}>{track.lyricStyle.backgroundImage ? <Icon>check_circle</Icon> : "\u672a\u8bbe\u7f6e"}</span><span><TrackCover track={track} active={false} playing={false} /></span><button type="button" onClick={retryActiveLyrics}>{track.lyrics?.status === "matched" ? "\u91cd\u65b0\u5339\u914d" : "\u5339\u914d\u6b4c\u8bcd"}</button></div>)}</div></section></div>;
+  return (
+    <div className="page-inner import-page">
+      {localTracks.length > 0 && (
+        <div className="success-banner"><Icon>check_circle</Icon><span>{"\u5df2\u5bfc\u5165 "}{localTracks.length}{" \u9996\u672c\u5730\u6b4c\u66f2\uff0c"}{matchedCount}{" \u9996\u5df2\u5339\u914d\u6b4c\u8bcd"}</span></div>
+      )}
+      <div className="import-grid">
+        <ImportCard icon="library_add" title={"\u5bfc\u5165\u672c\u5730\u6b4c\u66f2"} description={"\u9009\u62e9\u5355\u9996\u6b4c\u66f2\uff0c\u6216\u626b\u63cf\u6574\u4e2a\u97f3\u4e50\u6587\u4ef6\u5939\u3002"} body={"\u5bfc\u5165\u540e\u81ea\u52a8\u5c1d\u8bd5\u5339\u914d\u6b4c\u8bcd"} actions={[{ label: "\u9009\u62e9\u6b4c\u66f2\u6587\u4ef6", onClick: importAudio }, { label: "\u9009\u62e9\u97f3\u4e50\u6587\u4ef6\u5939", onClick: importFolder }]} />
+        <ImportCard icon="lyrics" title={"\u6b4c\u8bcd\u8865\u5168"} description={"\u652f\u6301 LRC \u5bfc\u5165\uff0c\u4e5f\u53ef\u6279\u91cf\u5728\u7ebf\u5339\u914d\u672c\u5730\u6b4c\u66f2\u3002"} body={matchingLyrics ? "\u6b63\u5728\u5339\u914d\u6b4c\u8bcd..." : "\u4f18\u5148\u4fdd\u5b58\u540c\u6b65\u6b4c\u8bcd"} actions={[{ label: "\u6279\u91cf\u8865\u5168\u6b4c\u8bcd", onClick: matchAllLyrics }, { label: "\u5bfc\u5165 LRC \u6587\u4ef6", onClick: importLrc }]} />
+        <ImportCard icon="wallpaper" title={"\u4e0a\u4f20\u58c1\u7eb8"} description={"\u4e3a\u6b4c\u8bcd\u9875\u9762\u8bbe\u7f6e\u4e13\u5c5e\u80cc\u666f\u56fe\u3002"} body={"\u652f\u6301 JPG\u3001PNG \u7b49\u56fe\u7247"} actions={[{ label: "\u9009\u62e9\u80cc\u666f\u56fe", onClick: importBackgroundImage }]} />
+        <ImportCard icon="image" title={"\u5173\u8054\u5c01\u9762\u56fe"} description={"\u4e3a\u5f53\u524d\u6b4c\u66f2\u8865\u5145\u5c01\u9762\uff0c\u4e0d\u4f1a\u8986\u76d6\u6b4c\u8bcd\u80cc\u666f\u3002"} body={"\u5c01\u9762\u7528\u4e8e\u5e95\u90e8\u64ad\u653e\u5668\u548c\u5531\u7247\u52a8\u6548"} actions={[{ label: "\u9009\u62e9\u5c01\u9762\u56fe", onClick: importCoverImage }]} />
+      </div>
+      <section className="resource-section">
+        <div className="section-title-row"><h3>{"\u5df2\u5bfc\u5165\u8d44\u6e90"}</h3><label>{"\u663e\u793a:"}<select><option>{"\u5168\u90e8"}</option></select></label></div>
+        <div className="glass-panel resource-table">
+          <div className="resource-head"><span>{"\u6b4c\u66f2\u540d\u79f0"}</span><span>{"\u683c\u5f0f"}</span><span>{"\u6b4c\u8bcd\u72b6\u6001"}</span><span>{"\u80cc\u666f\u72b6\u6001"}</span><span>{"\u5c01\u9762"}</span><span>{"\u64cd\u4f5c"}</span></div>
+          {!localTracks.length && <div className="empty-state">{"\u8fd8\u6ca1\u6709\u5bfc\u5165\u8d44\u6e90\u3002"}</div>}
+          {localTracks.map((track) => (
+            <div className="resource-row" key={track.id}>
+              <span className="resource-title"><span className="note-square"><Icon>music_note</Icon></span><span><b>{track.title}</b><small>{track.artist}</small></span></span>
+              <span>{track.format}</span>
+              <span className={`lyric-status ${track.lyrics?.status === "matched" ? "ok-text" : ""}`}>{lyricStatusLabel(track.lyrics?.status)}{track.lyrics?.error && <small>{track.lyrics.error}</small>}</span>
+              <span className={track.lyricStyle.backgroundImage ? "ok-text" : ""}>{track.lyricStyle.backgroundImage ? <Icon>check_circle</Icon> : "\u672a\u8bbe\u7f6e"}</span>
+              <span><TrackCover track={track} active={false} playing={false} /></span>
+              <span className="resource-actions">
+                <button type="button" onClick={() => retryLyricsForTrack(track.id)}>{track.lyrics?.status === "matched" ? "\u91cd\u65b0\u5339\u914d" : "\u5339\u914d\u6b4c\u8bcd"}</button>
+                <button type="button" onClick={() => openManualLyrics(track)}>{"\u624b\u52a8\u4fee\u6b63"}</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function ImportCard({ icon, title, description, body, actions }: { icon: string; title: string; description: string; body: string; actions: Array<{ label: string; onClick: () => void }> }) {
   return <div className="glass-card import-card"><div className="card-title"><Icon>{icon}</Icon><h2>{title}</h2></div><p>{description}</p><div className="drop-zone"><Icon>{icon === "library_add" ? "library_music" : icon === "lyrics" ? "subtitles" : "add_photo_alternate"}</Icon><span>{body}</span><div className="card-actions">{actions.map((action) => <button key={action.label} type="button" onClick={action.onClick}>{action.label}</button>)}</div></div></div>;
+}
+
+function candidatePreview(candidate: LyricsCandidate) {
+  const text = candidate.syncedLyrics || candidate.plainLyrics || "";
+  return text.split(/\r?\n/).map((line) => line.replace(/\[[^\]]+\]/g, "").trim()).filter(Boolean).slice(0, 2).join(" / ");
+}
+
+function ManualLyricsDialog({
+  state,
+  setState,
+  onClose,
+  onSearch,
+  onSaveCandidate,
+  onSavePasted,
+}: {
+  state: ManualLyricsState;
+  setState: React.Dispatch<React.SetStateAction<ManualLyricsState>>;
+  onClose: () => void;
+  onSearch: () => void;
+  onSaveCandidate: (candidate: LyricsCandidate) => void;
+  onSavePasted: () => void;
+}) {
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <section className="manual-lyrics-dialog">
+        <header>
+          <div><strong>{"\u624b\u52a8\u4fee\u6b63\u6b4c\u8bcd"}</strong><span>{"\u6539\u5173\u952e\u8bcd\u641c\u7d22\uff0c\u6216\u76f4\u63a5\u7c98\u8d34 LRC / \u666e\u901a\u6b4c\u8bcd"}</span></div>
+          <button type="button" onClick={onClose} aria-label={"\u5173\u95ed"}><Icon>close</Icon></button>
+        </header>
+        <div className="manual-search-grid">
+          <label><span>{"\u6b4c\u540d"}</span><input value={state.title} onChange={(event) => setState((current) => ({ ...current, title: event.target.value }))} /></label>
+          <label><span>{"\u6b4c\u624b"}</span><input value={state.artist} onChange={(event) => setState((current) => ({ ...current, artist: event.target.value }))} /></label>
+          <label><span>{"\u4e13\u8f91"}</span><input value={state.album} onChange={(event) => setState((current) => ({ ...current, album: event.target.value }))} /></label>
+          <button type="button" onClick={onSearch} disabled={state.searching}>{state.searching ? "\u641c\u7d22\u4e2d" : "\u641c\u7d22\u5019\u9009"}</button>
+        </div>
+        {state.error && <div className="manual-error">{state.error}</div>}
+        <div className="manual-candidates">
+          {state.candidates.map((candidate, index) => (
+            <button type="button" key={`${candidate.id ?? index}-${candidate.trackName ?? ""}`} onClick={() => onSaveCandidate(candidate)}>
+              <strong>{candidate.trackName || state.title}</strong>
+              <span>{[candidate.artistName, candidate.albumName, candidate.duration ? formatDuration(candidate.duration) : ""].filter(Boolean).join(" · ")}</span>
+              <small>{candidatePreview(candidate) || "\u70b9\u51fb\u4f7f\u7528\u8fd9\u4efd\u6b4c\u8bcd"}</small>
+            </button>
+          ))}
+        </div>
+        <label className="manual-paste">
+          <span>{"\u7c98\u8d34\u6b4c\u8bcd"}</span>
+          <textarea value={state.pasteText} onChange={(event) => setState((current) => ({ ...current, pasteText: event.target.value }))} placeholder={"[00:12.00] \u7b2c\u4e00\u53e5\u6b4c\u8bcd"} />
+        </label>
+        <footer>
+          <button type="button" onClick={onClose}>{"\u53d6\u6d88"}</button>
+          <button type="button" className="primary-pill" onClick={onSavePasted}>{"\u4fdd\u5b58\u7c98\u8d34\u6b4c\u8bcd"}</button>
+        </footer>
+      </section>
+    </div>
+  );
 }
 
 function PlaylistPage({ playlistName, tracks, activeTrack, playing, playTrack }: { playlistName: string; tracks: Track[]; activeTrack: Track; playing: boolean; playTrack: (trackId: string) => void }) {

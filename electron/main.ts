@@ -342,6 +342,18 @@ async function searchLrclibOnce(query: {
   return { ok: true as const, candidates: Array.isArray(candidates) ? candidates : [], query };
 }
 
+function sanitizeLyricsCandidate(candidate: any) {
+  return {
+    id: typeof candidate?.id === "number" ? candidate.id : undefined,
+    trackName: typeof candidate?.trackName === "string" ? candidate.trackName : undefined,
+    artistName: typeof candidate?.artistName === "string" ? candidate.artistName : undefined,
+    albumName: typeof candidate?.albumName === "string" ? candidate.albumName : undefined,
+    duration: typeof candidate?.duration === "number" ? candidate.duration : undefined,
+    syncedLyrics: typeof candidate?.syncedLyrics === "string" ? candidate.syncedLyrics : undefined,
+    plainLyrics: typeof candidate?.plainLyrics === "string" ? candidate.plainLyrics : undefined,
+  };
+}
+
 function createMainWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -517,12 +529,13 @@ app.whenReady().then(() => {
           lastError = searchResult.error;
           continue;
         }
-        const candidates = searchResult.candidates;
-        lastCandidates = candidates.length ? candidates : lastCandidates;
+        const candidates = searchResult.candidates.map(sanitizeLyricsCandidate);
+        const usableCandidates = candidates.filter((candidate) => candidate.syncedLyrics || candidate.plainLyrics);
+        lastCandidates = usableCandidates.length ? usableCandidates : lastCandidates;
         if (!candidates.length) {
           continue;
         }
-        const sorted = candidates
+        const sorted = usableCandidates
           .map((candidate) => ({ candidate, score: scoreLyricsCandidate(candidate, searchQuery) }))
           .sort((left, right) => right.score - left.score);
         const best = sorted[0]?.candidate;
@@ -582,6 +595,10 @@ app.whenReady().then(() => {
       ],
     });
     return result.canceled ? [] : result.filePaths;
+  });
+
+  ipcMain.handle("library:read-lrc", async (_event, filePath: string) => {
+    return fs.readFile(filePath, "utf8");
   });
 
   ipcMain.handle("library:open-image", async () => {

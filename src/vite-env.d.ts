@@ -9,6 +9,7 @@ interface Window {
     readAudioTags?: (filePath: string) => Promise<AudioTagInfo>;
     searchLyrics?: (query: LyricsSearchQuery) => Promise<LyricsSearchResult>;
     openLrcFiles?: () => Promise<string[]>;
+    readLrcFile?: (filePath: string) => Promise<string>;
     openImageFile?: () => Promise<string | null>;
     minimizeWindow?: () => Promise<void>;
     toggleMaximizeWindow?: () => Promise<void>;
@@ -63,6 +64,16 @@ type LyricsSearchQuery = {
   duration?: number;
 };
 
+type LyricsCandidate = {
+  id?: number;
+  trackName?: string;
+  artistName?: string;
+  albumName?: string;
+  duration?: number;
+  syncedLyrics?: string;
+  plainLyrics?: string;
+};
+
 type LyricsSearchResult =
   | {
       status: "matched";
@@ -74,9 +85,9 @@ type LyricsSearchResult =
       duration?: number;
       syncedLyrics?: string;
       plainLyrics?: string;
-      candidates?: unknown[];
+      candidates?: LyricsCandidate[];
     }
-  | { status: "not-found"; candidates?: unknown[] }
+  | { status: "not-found"; candidates?: LyricsCandidate[] }
   | { status: "failed"; error?: string };
 
 type UpdaterStatus =

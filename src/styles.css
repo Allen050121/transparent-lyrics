@@ -1155,7 +1155,7 @@ button {
 .resource-head,
 .resource-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 100px 130px 130px 100px 120px;
+  grid-template-columns: minmax(240px, 1fr) 90px 150px 120px 86px 190px;
   gap: 16px;
   align-items: center;
   padding: 0 24px;
@@ -1199,6 +1199,181 @@ button {
 
 .ok-text {
   color: #67f37f;
+}
+
+.lyric-status small {
+  display: block;
+  max-width: 150px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: rgba(255, 190, 120, .82);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.resource-actions button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 10px;
+  color: #e5e2e1;
+  background: rgba(255, 255, 255, .1);
+  font-weight: 800;
+}
+
+.resource-actions button:last-child {
+  color: #a7e0ff;
+  background: rgba(167, 224, 255, .13);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: rgba(3, 7, 10, .62);
+  backdrop-filter: blur(14px);
+}
+
+.manual-lyrics-dialog {
+  width: min(860px, calc(100vw - 56px));
+  max-height: calc(100vh - 88px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: auto;
+  padding: 24px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: rgba(18, 22, 25, .96);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .42);
+}
+
+.manual-lyrics-dialog header,
+.manual-lyrics-dialog footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.manual-lyrics-dialog header strong,
+.manual-lyrics-dialog header span {
+  display: block;
+}
+
+.manual-lyrics-dialog header strong {
+  color: #e5e2e1;
+  font-size: 22px;
+}
+
+.manual-lyrics-dialog header span {
+  margin-top: 4px;
+  color: rgba(189, 200, 207, .78);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.manual-lyrics-dialog header button,
+.manual-lyrics-dialog footer button,
+.manual-search-grid button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: #e5e2e1;
+  background: rgba(255, 255, 255, .1);
+  font-weight: 900;
+}
+
+.manual-search-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.manual-search-grid label,
+.manual-paste {
+  display: grid;
+  gap: 7px;
+  color: rgba(189, 200, 207, .72);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.manual-search-grid input,
+.manual-paste textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 9px;
+  color: #e5e2e1;
+  background: rgba(255, 255, 255, .07);
+  font: inherit;
+}
+
+.manual-search-grid input {
+  height: 40px;
+  padding: 0 12px;
+}
+
+.manual-paste textarea {
+  min-height: 150px;
+  resize: vertical;
+  padding: 12px;
+  line-height: 1.55;
+}
+
+.manual-error {
+  padding: 10px 12px;
+  border-radius: 9px;
+  color: #ffd29b;
+  background: rgba(255, 180, 90, .1);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.manual-candidates {
+  display: grid;
+  gap: 10px;
+}
+
+.manual-candidates button {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #bdc8cf;
+  background: rgba(255, 255, 255, .055);
+  text-align: left;
+}
+
+.manual-candidates button:hover {
+  border-color: rgba(167, 224, 255, .42);
+  background: rgba(167, 224, 255, .1);
+}
+
+.manual-candidates strong {
+  color: #e5e2e1;
+}
+
+.manual-candidates small {
+  overflow: hidden;
+  color: rgba(189, 200, 207, .68);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .playlist-hero {
