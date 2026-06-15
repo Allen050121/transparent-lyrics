@@ -270,6 +270,13 @@ function writeGlobalLyricStyle(style: LyricStyle) {
   localStorage.setItem(lyricStyleKey, JSON.stringify(normalizeLyricStyle(style)));
 }
 
+function getEffectiveLyricStyle(track: Track, tracks: Track[], globalStyle: LyricStyle) {
+  const isLibraryTrack = tracks.some((item) => item.id === track.id);
+  return isLibraryTrack
+    ? normalizeLyricStyle({ ...globalStyle, ...track.lyricStyle })
+    : normalizeLyricStyle(globalStyle);
+}
+
 function formatDuration(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "00:00";
   const minutes = Math.floor(seconds / 60);
@@ -463,6 +470,10 @@ function App() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const lrcInputRef = useRef<HTMLInputElement>(null);
   const activeTrack = tracks.find((track) => track.id === activeTrackId) ?? tracks[0] ?? placeholderTrack;
+  const effectiveLyricStyle = useMemo(
+    () => getEffectiveLyricStyle(activeTrack, tracks, globalLyricStyle),
+    [activeTrack, globalLyricStyle, tracks],
+  );
   const recentTracks = useMemo(() => {
     const byId = new Map(tracks.map((track) => [track.id, track]));
     return recentTrackIds
@@ -737,6 +748,9 @@ function App() {
       const nextStyle = normalizeLyricStyle({ ...globalLyricStyle, ...patch });
       setGlobalLyricStyle(nextStyle);
       writeGlobalLyricStyle(nextStyle);
+      if (!tracks.some((track) => track.id === activeTrack.id)) {
+        return;
+      }
       const nextTracks = tracks.map((track) =>
         track.id === activeTrack.id
           ? { ...track, lyricStyle: normalizeLyricStyle({ ...track.lyricStyle, ...patch }) }
@@ -870,6 +884,7 @@ function App() {
           currentTime,
           volume,
           activeTrack,
+          effectiveLyricStyle,
           tracks,
           matchingLyrics,
           audio: audio
@@ -892,7 +907,7 @@ function App() {
       },
       playActive: () => playTrack(activeTrack.id),
     };
-  }, [activeTrack, currentTime, matchingLyrics, playTrack, playing, tracks, view, volume]);
+  }, [activeTrack, currentTime, effectiveLyricStyle, matchingLyrics, playTrack, playing, tracks, view, volume]);
 
   useEffect(() => {
     writeLibrary(tracks);
@@ -934,7 +949,7 @@ function App() {
     }
   }, [playing]);
 
-  const lyricPageBackground = globalLyricStyle.backgroundImage || activeTrack.lyricStyle.backgroundImage || getCover(activeTrack);
+  const lyricPageBackground = effectiveLyricStyle.backgroundImage || getCover(activeTrack);
 
   return (
     <main
@@ -982,6 +997,8 @@ function App() {
             checkForUpdates={checkForUpdates}
             downloadUpdate={downloadUpdate}
             installUpdate={installUpdate}
+            lyricStyle={effectiveLyricStyle}
+            updateLyricStyle={updateLyricStyle}
             resetLyricStyle={() => updateLyricStyle(defaultLyricStyle)}
             onLegacyMediaMigrated={migrateLegacyTrackPaths}
           />
@@ -991,7 +1008,7 @@ function App() {
             activeTrack={activeTrack}
             currentTime={currentTime}
             playing={playing}
-            lyricStyle={normalizeLyricStyle({ ...activeTrack.lyricStyle, ...globalLyricStyle })}
+            lyricStyle={effectiveLyricStyle}
             updateLyricStyle={updateLyricStyle}
             applyLyricStyleToAllTracks={applyLyricStyleToAllTracks}
             customLyricPresets={customLyricPresets}
@@ -1317,15 +1334,37 @@ function TrackTable({ tracks, activeTrack, playing, playTrack, emptyText }: { tr
   );
 }
 
-function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installUpdate, resetLyricStyle, onLegacyMediaMigrated }: { updaterStatus: UpdaterStatus; checkForUpdates: () => void; downloadUpdate: () => void; installUpdate: () => void; resetLyricStyle: () => void; onLegacyMediaMigrated: (info: StorageInfo) => void }) {
+function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installUpdate, lyricStyle, updateLyricStyle, resetLyricStyle, onLegacyMediaMigrated }: { updaterStatus: UpdaterStatus; checkForUpdates: () => void; downloadUpdate: () => void; installUpdate: () => void; lyricStyle: LyricStyle; updateLyricStyle: (patch: Partial<LyricStyle>) => void; resetLyricStyle: () => void; onLegacyMediaMigrated: (info: StorageInfo) => void }) {
   const [cacheMessage, setCacheMessage] = useState("");
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [storageMessage, setStorageMessage] = useState("");
+  const [storageLoading, setStorageLoading] = useState(true);
   const checking = updaterStatus.status === "checking";
+  const storageApiReady = Boolean(window.transparentLyrics?.getStorageInfo && window.transparentLyrics?.chooseStorageRoot && window.transparentLyrics?.openStorageRoot && window.transparentLyrics?.migrateLegacyMedia);
   useEffect(() => {
-    window.transparentLyrics?.getStorageInfo?.()
-      .then((info) => setStorageInfo(info))
-      .catch((error) => console.warn("[Transparent Lyrics] Failed to read storage info", error));
+    let active = true;
+    if (!window.transparentLyrics?.getStorageInfo) {
+      setStorageLoading(false);
+      setStorageMessage("\u5f53\u524d\u5b89\u88c5\u5305\u7f3a\u5c11\u5b58\u50a8\u7ba1\u7406\u63a5\u53e3\uff0c\u8bf7\u66f4\u65b0\u5230\u6700\u65b0\u7248\u540e\u518d\u4f7f\u7528\u3002");
+      return () => {
+        active = false;
+      };
+    }
+    window.transparentLyrics.getStorageInfo()
+      .then((info) => {
+        if (active) setStorageInfo(info);
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        if (active) setStorageMessage(`\u8bfb\u53d6\u5b58\u50a8\u76ee\u5f55\u5931\u8d25\uff1a${message}`);
+        console.warn("[Transparent Lyrics] Failed to read storage info", error);
+      })
+      .finally(() => {
+        if (active) setStorageLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   const openUserDataFolder = async () => {
     try {
@@ -1345,7 +1384,11 @@ function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installU
   };
   const chooseStorageRoot = async () => {
     try {
-      const info = await window.transparentLyrics?.chooseStorageRoot?.();
+      if (!window.transparentLyrics?.chooseStorageRoot) {
+        setStorageMessage("\u5f53\u524d\u5b89\u88c5\u5305\u7f3a\u5c11\u66f4\u6539\u5b58\u50a8\u4f4d\u7f6e\u63a5\u53e3\uff0c\u8bf7\u66f4\u65b0\u5230\u6700\u65b0\u7248\u540e\u518d\u4f7f\u7528\u3002");
+        return;
+      }
+      const info = await window.transparentLyrics.chooseStorageRoot();
       if (info) setStorageInfo(info);
       setStorageMessage("新的导入歌曲会保存到这个目录");
     } catch (error) {
@@ -1355,7 +1398,11 @@ function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installU
   };
   const openStorageRoot = async () => {
     try {
-      const info = await window.transparentLyrics?.openStorageRoot?.();
+      if (!window.transparentLyrics?.openStorageRoot) {
+        setStorageMessage("\u5f53\u524d\u5b89\u88c5\u5305\u7f3a\u5c11\u6253\u5f00\u5a92\u4f53\u76ee\u5f55\u63a5\u53e3\uff0c\u8bf7\u66f4\u65b0\u5230\u6700\u65b0\u7248\u540e\u518d\u4f7f\u7528\u3002");
+        return;
+      }
+      const info = await window.transparentLyrics.openStorageRoot();
       if (info) setStorageInfo(info);
     } catch (error) {
       console.warn("[Transparent Lyrics] Failed to open storage root", error);
@@ -1363,7 +1410,11 @@ function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installU
   };
   const migrateLegacyMedia = async () => {
     try {
-      const info = await window.transparentLyrics?.migrateLegacyMedia?.();
+      if (!window.transparentLyrics?.migrateLegacyMedia) {
+        setStorageMessage("\u5f53\u524d\u5b89\u88c5\u5305\u7f3a\u5c11\u8fc1\u79fb\u65e7\u5a92\u4f53\u63a5\u53e3\uff0c\u8bf7\u66f4\u65b0\u5230\u6700\u65b0\u7248\u540e\u518d\u4f7f\u7528\u3002");
+        return;
+      }
+      const info = await window.transparentLyrics.migrateLegacyMedia();
       if (info) {
         setStorageInfo(info);
         onLegacyMediaMigrated(info);
@@ -1391,12 +1442,12 @@ function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installU
           <div className="settings-card-head"><Icon>folder_managed</Icon><div><h3>{"数据与缓存"}</h3><p>{"配置保存在系统用户目录；歌曲和后续媒体缓存默认放在 D 盘"}</p></div></div>
           <div className="settings-path-box">
             <span>{"媒体存储目录"}</span>
-            <strong>{storageInfo?.storageRoot ?? "正在读取..."}</strong>
+            <strong>{storageInfo?.storageRoot ?? (storageLoading ? "\u6b63\u5728\u8bfb\u53d6..." : "\u672a\u8bfb\u53d6\u5230\u5b58\u50a8\u76ee\u5f55")}</strong>
           </div>
           <div className="settings-actions">
-            <button type="button" onClick={openStorageRoot}><Icon>folder_open</Icon>{"打开媒体目录"}</button>
-            <button type="button" onClick={chooseStorageRoot}><Icon>drive_file_move</Icon>{"更改存储位置"}</button>
-            <button type="button" onClick={migrateLegacyMedia}><Icon>move_down</Icon>{"迁移旧媒体"}</button>
+            <button type="button" onClick={openStorageRoot} disabled={!storageApiReady || storageLoading}><Icon>folder_open</Icon>{"打开媒体目录"}</button>
+            <button type="button" onClick={chooseStorageRoot} disabled={!storageApiReady || storageLoading}><Icon>drive_file_move</Icon>{"更改存储位置"}</button>
+            <button type="button" onClick={migrateLegacyMedia} disabled={!storageApiReady || storageLoading}><Icon>move_down</Icon>{"迁移旧媒体"}</button>
             <button type="button" onClick={openUserDataFolder}><Icon>settings_applications</Icon>{"打开配置目录"}</button>
             <button type="button" onClick={clearCache}><Icon>cleaning_services</Icon>{"清理缓存"}</button>
           </div>
@@ -1405,7 +1456,11 @@ function SettingsPage({ updaterStatus, checkForUpdates, downloadUpdate, installU
         </section>
         <section className="glass-panel settings-card">
           <div className="settings-card-head"><Icon>lyrics</Icon><div><h3>{"歌词页操作"}</h3><p>{"默认锁定画布，避免误触拖动；位置请在样式面板里调 X / Y"}</p></div></div>
-          <div className="settings-state-row"><span>{"画布拖动"}</span><strong>{"已锁定"}</strong></div>
+          <button className="settings-switch-row" type="button" onClick={() => updateLyricStyle({ layoutLocked: !lyricStyle.layoutLocked })} aria-pressed={!lyricStyle.layoutLocked}>
+            <span>{"画布拖动"}</span>
+            <strong>{lyricStyle.layoutLocked ? "\u5df2\u9501\u5b9a" : "\u5df2\u5f00\u542f"}</strong>
+            <i aria-hidden="true" />
+          </button>
           <div className="settings-actions">
             <button type="button" onClick={resetLyricStyle}><Icon>restart_alt</Icon>{"重置歌词样式"}</button>
           </div>
@@ -1640,6 +1695,7 @@ function LyricsPage({
   const [panelOpen, setPanelOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [previewPatch, setPreviewPatch] = useState<Partial<LyricStyle>>({});
+  const dragStateRef = useRef<{ pointerId: number; startClientX: number; startClientY: number; startX: number; startY: number } | null>(null);
   const lyricStackRef = useRef<HTMLDivElement>(null);
   const isTuning = Object.keys(previewPatch).length > 0;
   const style = normalizeLyricStyle({ ...lyricStyle, ...previewPatch });
@@ -1686,6 +1742,34 @@ function LyricsPage({
   };
   const buildLyricTransform = (x: number, y: number) => `translate(-50%, -50%) translate(${x}vw, ${y}vh) scale(${style.scale}) rotateX(${style.rotateX}deg) rotateY(${style.rotateY}deg) rotateZ(${style.rotateZ}deg) skew(${style.skewX}deg, ${style.skewY}deg)`;
   const transform = buildLyricTransform(style.x, style.y);
+  const startLyricDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (style.layoutLocked) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStateRef.current = { pointerId: event.pointerId, startClientX: event.clientX, startClientY: event.clientY, startX: style.x, startY: style.y };
+    event.currentTarget.classList.add("dragging");
+  };
+  const moveLyricDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    const nextX = Math.max(-40, Math.min(40, dragState.startX + ((event.clientX - dragState.startClientX) / window.innerWidth) * 100));
+    const nextY = Math.max(-40, Math.min(40, dragState.startY + ((event.clientY - dragState.startClientY) / window.innerHeight) * 100));
+    setPreviewPatch((current) => ({ ...current, x: Number(nextX.toFixed(1)), y: Number(nextY.toFixed(1)) }));
+  };
+  const endLyricDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    dragStateRef.current = null;
+    event.currentTarget.classList.remove("dragging");
+    const nextX = Number(style.x.toFixed(1));
+    const nextY = Number(style.y.toFixed(1));
+    setPreviewPatch((current) => {
+      const next = { ...current };
+      delete next.x;
+      delete next.y;
+      return next;
+    });
+    updateLyricStyle({ x: nextX, y: nextY });
+  };
   const lyricTextStyle: React.CSSProperties = {
     transform,
     opacity: style.opacity,
@@ -1702,9 +1786,17 @@ function LyricsPage({
     color: style.inactiveColor,
     opacity: style.inactiveOpacity,
   };
+  const toggleCanvasDrag = () => {
+    setPreviewPatch((current) => {
+      const next = { ...current };
+      delete next.layoutLocked;
+      return next;
+    });
+    updateLyricStyle({ layoutLocked: !style.layoutLocked });
+  };
   return (
     <div
-      className={`lyrics-page-native preset-${style.presetId} mode-${style.lyricDisplayMode} ${style.scanline ? "has-scanline" : ""} ${isTuning ? "is-tuning" : ""}`}
+      className={`lyrics-page-native preset-${style.presetId} mode-${style.lyricDisplayMode} ${style.scanline ? "has-scanline" : ""} ${style.layoutLocked ? "" : "is-drag-unlocked"} ${isTuning ? "is-tuning" : ""}`}
     >
       <div className="lyrics-bg" style={{ backgroundImage: `url(${background})`, filter: `blur(${style.backgroundBlur}px) saturate(${style.backgroundSaturation}%)` }} />
       <div className="lyrics-dim" style={{ background: `rgba(0, 0, 0, ${style.backgroundDim / 100})` }} />
@@ -1729,6 +1821,10 @@ function LyricsPage({
         ref={lyricStackRef}
         className={`lyric-stack ${style.layoutLocked ? "locked" : ""}`}
         style={lyricTextStyle}
+        onPointerDown={startLyricDrag}
+        onPointerMove={moveLyricDrag}
+        onPointerUp={endLyricDrag}
+        onPointerCancel={endLyricDrag}
       >
         {style.lyricDisplayMode === "single" ? (
           <h2 key={lyricWindow.active} className="single-line" style={activeTextStyle}>{lyricWindow.active}</h2>
@@ -1742,6 +1838,14 @@ function LyricsPage({
       </div>
       <button className="lyric-panel-toggle" type="button" onClick={() => setPanelOpen((current) => !current)} aria-label={"\u6b4c\u8bcd\u6837\u5f0f"}>
         <Icon>{panelOpen ? "close" : "tune"}</Icon>
+      </button>
+      <button
+        className={`lyric-drag-toggle ${style.layoutLocked ? "" : "active"}`}
+        type="button"
+        onClick={toggleCanvasDrag}
+        aria-label={style.layoutLocked ? "\u5f00\u542f\u753b\u5e03\u62d6\u52a8" : "\u5173\u95ed\u753b\u5e03\u62d6\u52a8"}
+      >
+        <Icon>{style.layoutLocked ? "lock" : "lock_open"}</Icon>
       </button>
       <aside className={`lyric-style-panel ${panelOpen ? "open" : ""}`} style={{ background: `rgba(18, 20, 22, ${0.3 + style.panelOpacity / 100})` }}>
         <div className="lyric-panel-head">
@@ -1757,6 +1861,9 @@ function LyricsPage({
           <button type="button" onClick={fitReadableStyle}><Icon>auto_fix_high</Icon>{"\u667a\u80fd\u9002\u914d"}</button>
           <button type="button" onClick={() => saveCustomLyricPreset(style)}><Icon>bookmark_add</Icon>{"\u4fdd\u5b58\u6837\u5f0f"}</button>
           <button type="button" onClick={() => applyLyricStyleToAllTracks(style)}><Icon>library_music</Icon>{"\u5e94\u7528\u5168\u90e8"}</button>
+          <button type="button" className={style.layoutLocked ? "" : "active"} onClick={toggleCanvasDrag}>
+            <Icon>{style.layoutLocked ? "lock" : "lock_open"}</Icon>{style.layoutLocked ? "\u5f00\u542f\u62d6\u52a8" : "\u5173\u95ed\u62d6\u52a8"}
+          </button>
         </div>
         <div className="preset-row">
           {allPresets.map((preset) => (

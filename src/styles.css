@@ -903,6 +903,58 @@ button {
   color: #a7e0ff;
 }
 
+.settings-switch-row {
+  width: 100%;
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  color: rgba(231, 238, 244, .68);
+  background: rgba(255, 255, 255, .055);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.settings-switch-row strong {
+  color: #a7e0ff;
+}
+
+.settings-switch-row i {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
+}
+
+.settings-switch-row i::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(231, 238, 244, .86);
+  transition: transform .16s ease, background .16s ease;
+}
+
+.settings-switch-row[aria-pressed="true"] i {
+  background: #a7e0ff;
+}
+
+.settings-switch-row[aria-pressed="true"] i::after {
+  background: #101314;
+  transform: translateX(22px);
+}
+
 .cover-box {
   position: relative;
   width: 46px;
@@ -1470,7 +1522,12 @@ button {
 
 .lyric-stack.dragging {
   transition: none;
+  cursor: grabbing;
   will-change: transform;
+}
+
+.lyric-stack:not(.locked) {
+  cursor: grab;
 }
 
 .lyric-stack.locked {
@@ -1563,6 +1620,29 @@ button {
   box-shadow: 0 18px 38px rgba(0,0,0,.38);
 }
 
+.lyric-drag-toggle {
+  position: absolute;
+  right: 24px;
+  top: 106px;
+  z-index: 7;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  color: rgba(231, 238, 244, .78);
+  background: rgba(8, 10, 12, .38);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 38px rgba(0,0,0,.32);
+}
+
+.lyric-drag-toggle.active {
+  color: #101314;
+  background: #a7e0ff;
+  border-color: transparent;
+}
+
 .lyric-style-panel {
   position: absolute;
   right: 18px;
@@ -1642,6 +1722,7 @@ button {
 }
 
 .lyric-quick-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-bottom: 16px;
 }
 
@@ -1661,6 +1742,12 @@ button {
   color: #eef2f4;
   border-color: rgba(103, 243, 127, .34);
   background: rgba(103, 243, 127, .14);
+}
+
+.lyric-quick-actions button.active {
+  color: #101314;
+  border-color: transparent;
+  background: #a7e0ff;
 }
 
 .advanced-toggle {
