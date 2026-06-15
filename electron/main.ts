@@ -18,9 +18,11 @@ const appIconPath = isDev
 const audioExtensions = new Set([".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac"]);
 let mainWindow: BrowserWindow | null = null;
 let pendingUpdateVersion: string | undefined;
+let updateCheckTimeout: ReturnType<typeof setTimeout> | undefined;
 const releasePageUrl = "https://github.com/Allen050121/transparent-lyrics/releases";
 const storageConfigFile = "storage.json";
 const defaultStorageRoot = "D:\\TransparentLyricsData";
+const updateCheckTimeoutMs = 25_000;
 
 type UpdaterStatus =
   | { status: "idle"; currentVersion: string }
@@ -55,6 +57,33 @@ function sendUpdaterStatus(status: UpdaterStatus) {
   mainWindow?.webContents.send("updater:status", status);
 }
 
+function clearUpdateCheckTimeout() {
+  if (!updateCheckTimeout) return;
+  clearTimeout(updateCheckTimeout);
+  updateCheckTimeout = undefined;
+}
+
+function sendUpdaterError(error: unknown) {
+  clearUpdateCheckTimeout();
+  sendUpdaterStatus({
+    status: "error",
+    currentVersion: app.getVersion(),
+    error: error instanceof Error ? error.message : String(error),
+  });
+}
+
+function startUpdateCheckTimeout() {
+  clearUpdateCheckTimeout();
+  updateCheckTimeout = setTimeout(() => {
+    updateCheckTimeout = undefined;
+    sendUpdaterStatus({
+      status: "error",
+      currentVersion: app.getVersion(),
+      error: "Update check timed out. Please retry or open the GitHub Release page.",
+    });
+  }, updateCheckTimeoutMs);
+}
+
 function configureAutoUpdater() {
   autoUpdater.logger = log;
   autoUpdater.autoDownload = false;
@@ -62,9 +91,11 @@ function configureAutoUpdater() {
   autoUpdater.allowPrerelease = true;
 
   autoUpdater.on("checking-for-update", () => {
+    startUpdateCheckTimeout();
     sendUpdaterStatus({ status: "checking", currentVersion: app.getVersion() });
   });
   autoUpdater.on("update-available", (info) => {
+    clearUpdateCheckTimeout();
     pendingUpdateVersion = info.version;
     sendUpdaterStatus({
       status: "available",
@@ -75,6 +106,7 @@ function configureAutoUpdater() {
     });
   });
   autoUpdater.on("update-not-available", () => {
+    clearUpdateCheckTimeout();
     sendUpdaterStatus({ status: "not-available", currentVersion: app.getVersion() });
   });
   autoUpdater.on("download-progress", (progress) => {
@@ -86,6 +118,7 @@ function configureAutoUpdater() {
     });
   });
   autoUpdater.on("update-downloaded", (info) => {
+    clearUpdateCheckTimeout();
     pendingUpdateVersion = info.version;
     sendUpdaterStatus({
       status: "downloaded",
@@ -95,11 +128,7 @@ function configureAutoUpdater() {
     });
   });
   autoUpdater.on("error", (error) => {
-    sendUpdaterStatus({
-      status: "error",
-      currentVersion: app.getVersion(),
-      error: error instanceof Error ? error.message : String(error),
-    });
+    sendUpdaterError(error);
   });
 }
 
@@ -434,8 +463,14 @@ app.whenReady().then(() => {
       sendUpdaterStatus(status);
       return status;
     }
-    await autoUpdater.checkForUpdates();
-    return { status: "checking", currentVersion: app.getVersion() } satisfies UpdaterStatus;
+    const status: UpdaterStatus = { status: "checking", currentVersion: app.getVersion() };
+    startUpdateCheckTimeout();
+    sendUpdaterStatus(status);
+    autoUpdater.checkForUpdates().catch((error) => {
+      log.warn("[updater] manual check failed", error);
+      sendUpdaterError(error);
+    });
+    return status;
   });
 
   ipcMain.handle("updater:download", async () => {
@@ -575,6 +610,7 @@ app.whenReady().then(() => {
     setTimeout(() => {
       autoUpdater.checkForUpdates().catch((error) => {
         log.warn("[updater] startup check failed", error);
+        sendUpdaterError(error);
       });
     }, 3500);
   }
