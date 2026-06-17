@@ -6,6 +6,7 @@ import { SideNav, TopBar, WindowChrome } from "./components/AppChrome";
 import { Icon } from "./components/Icon";
 import { PlayerBar } from "./components/PlayerBar";
 import { useAudioPlayer } from "./hooks/useAudioPlayer";
+import { useLyricsMatching } from "./hooks/useLyricsMatching";
 import { useManualLyrics } from "./hooks/useManualLyrics";
 import { useUpdater } from "./hooks/useUpdater";
 import { defaultLyricStyle, normalizeLyricStyle } from "./lyricStyles";
@@ -43,7 +44,6 @@ function App() {
   const [tracks, setTracks] = useState<Track[]>(readLibrary);
   const [activeTrackId, setActiveTrackId] = useState(() => localStorage.getItem(activeTrackKey) ?? readLibrary()[0]?.id);
   const [recentTrackIds, setRecentTrackIds] = useState<string[]>(readRecentTrackIds);
-  const [matchingLyrics, setMatchingLyrics] = useState(false);
   const [globalLyricStyle, setGlobalLyricStyle] = useState<LyricStyle>(readGlobalLyricStyle);
   const [customLyricPresets, setCustomLyricPresets] = useState<LyricPreset[]>(readCustomLyricPresets);
   const [imageImportTarget, setImageImportTarget] = useState<"background" | "cover">("background");
@@ -119,48 +119,6 @@ function App() {
     });
   }, [history, view]);
 
-  const matchLyricsForTrack = useCallback(async (track: Track): Promise<Track> => {
-    if (!window.transparentLyrics?.searchLyrics) {
-      return { ...track, lyrics: { source: "lrclib", status: "failed", error: "Lyrics API is unavailable" } };
-    }
-    const result = await window.transparentLyrics.searchLyrics({
-      title: track.title,
-      artist: track.artist,
-      album: track.album,
-      duration: track.duration,
-    });
-    if (result.status === "matched") {
-      return {
-        ...track,
-        title: result.trackName || track.title,
-        artist: result.artistName || track.artist,
-        album: result.albumName || track.album,
-        duration: result.duration || track.duration,
-        durationLabel: result.duration ? formatDuration(result.duration) : track.durationLabel,
-        lyrics: {
-          source: "lrclib",
-          status: "matched",
-          syncedText: result.syncedLyrics,
-          plainText: result.plainLyrics,
-          matchedAt: new Date().toISOString(),
-          providerId: result.id,
-        },
-      };
-    }
-    if (result.status === "not-found") {
-      return { ...track, lyrics: { source: "lrclib", status: "not-found", matchedAt: new Date().toISOString() } };
-    }
-    return {
-      ...track,
-      lyrics: {
-        source: "lrclib",
-        status: "failed",
-        matchedAt: new Date().toISOString(),
-        error: result.error,
-      },
-    };
-  }, []);
-
   const applyLyricsToTrack = useCallback((trackId: string, lyrics: TrackLyrics, metadata?: Partial<Track>) => {
     commitTracks(tracks.map((track) =>
       track.id === trackId
@@ -187,33 +145,12 @@ function App() {
     savePastedLyrics,
   } = useManualLyrics({ tracks, applyLyricsToTrack });
 
-  const matchLyricsForTracks = useCallback(
-    async (targetTracks: Track[]) => {
-      if (!targetTracks.length) return targetTracks;
-      setMatchingLyrics(true);
-      const nextTracks: Track[] = [];
-      for (const track of targetTracks) {
-        nextTracks.push(await matchLyricsForTrack(track));
-      }
-      setMatchingLyrics(false);
-      return nextTracks;
-    },
-    [matchLyricsForTrack],
-  );
-
-  const matchAllLyrics = useCallback(async () => {
-    const matched = await matchLyricsForTracks(tracks.filter((track) => !track.id.startsWith("demo-")));
-    const matchedById = new Map(matched.map((track) => [track.id, track]));
-    const nextTracks = tracks.map((track) => matchedById.get(track.id) ?? track);
-    commitTracks(nextTracks);
-  }, [commitTracks, matchLyricsForTracks, tracks]);
-
-  const retryLyricsForTrack = useCallback(async (trackId: string) => {
-    const targetTrack = tracks.find((track) => track.id === trackId);
-    if (!targetTrack || targetTrack.id.startsWith("demo-")) return;
-    const matched = await matchLyricsForTrack(targetTrack);
-    commitTracks(tracks.map((track) => (track.id === matched.id ? matched : track)));
-  }, [commitTracks, matchLyricsForTrack, tracks]);
+  const {
+    matchingLyrics,
+    matchLyricsForTracks,
+    matchAllLyrics,
+    retryLyricsForTrack,
+  } = useLyricsMatching({ tracks, commitTracks });
 
   const importAudio = useCallback(async () => {
     const fromElectron = await window.transparentLyrics?.openAudioFiles?.();

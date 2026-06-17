@@ -77,7 +77,7 @@ type LyricsCandidate = {
 type LyricsSearchResult =
   | {
       status: "matched";
-      source: "lrclib";
+      source: string;
       id?: number;
       trackName?: string;
       artistName?: string;
