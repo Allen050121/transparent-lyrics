@@ -4,8 +4,8 @@ import updaterPkg, { type UpdateInfo } from "electron-updater";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseFile } from "music-metadata";
 import { createLyricsProviders, searchLyricsWithProviders, type LyricsSearchQuery } from "./lyricsProviders.js";
+import { createLocalFileMusicSource } from "./musicSources.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const { autoUpdater } = updaterPkg;
@@ -16,7 +16,6 @@ const preloadPath = isDev
 const appIconPath = isDev
   ? path.join(__dirname, "../build/icon.png")
   : path.join(__dirname, "../build/icon.png");
-const audioExtensions = new Set([".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac"]);
 let mainWindow: BrowserWindow | null = null;
 let pendingUpdateVersion: string | undefined;
 let updateCheckTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -25,6 +24,7 @@ const storageConfigFile = "storage.json";
 const defaultStorageRoot = "D:\\TransparentLyricsData";
 const updateCheckTimeoutMs = 25_000;
 const lyricsProviders = createLyricsProviders();
+const localMusicSource = createLocalFileMusicSource({ getStorageRoot });
 
 type UpdaterStatus =
   | { status: "idle"; currentVersion: string }
@@ -135,16 +135,6 @@ function configureAutoUpdater() {
   });
 }
 
-async function copyToLibrary(filePath: string, index: number) {
-  const parsed = path.parse(filePath);
-  const mediaDir = path.join(await getStorageRoot(), "media-library");
-  await fs.mkdir(mediaDir, { recursive: true });
-  const safeName = `${Date.now()}-${index}${parsed.ext.toLowerCase()}`;
-  const storedPath = path.join(mediaDir, safeName);
-  await fs.copyFile(filePath, storedPath);
-  return storedPath;
-}
-
 async function getStorageRoot() {
   const configPath = path.join(app.getPath("userData"), storageConfigFile);
   try {
@@ -202,78 +192,6 @@ async function copyDirectoryContents(sourceDir: string, targetDir: string) {
     if (error?.code === "ENOENT") return;
     throw error;
   }
-}
-
-function parseTitleArtistFromFilename(filePath: string) {
-  const name = path.parse(filePath).name.replace(/[_]+/g, " ").trim();
-  const [artist, ...titleParts] = name.split(/\s+-\s+/);
-  if (titleParts.length) {
-    return {
-      title: titleParts.join(" - ").trim(),
-      artist: artist.trim(),
-    };
-  }
-  return { title: name, artist: "" };
-}
-
-async function readAudioInfo(filePath: string) {
-  const fallback = parseTitleArtistFromFilename(filePath);
-  try {
-    const metadata = await parseFile(filePath, { duration: true });
-    const common = metadata.common;
-    const ext = path.extname(filePath).replace(".", "").toUpperCase();
-    return {
-      title: common.title || fallback.title,
-      artist: common.artist || fallback.artist || "鏈湴闊充箰",
-      album: common.album || "Local Library",
-      duration: metadata.format.duration || 0,
-      format: ext || metadata.format.container || "AUDIO",
-    };
-  } catch {
-    return {
-      title: fallback.title,
-      artist: fallback.artist || "鏈湴闊充箰",
-      album: "Local Library",
-      duration: 0,
-      format: path.extname(filePath).replace(".", "").toUpperCase() || "AUDIO",
-    };
-  }
-}
-
-async function collectAudioFiles(directory: string) {
-  const results: string[] = [];
-  async function walk(current: string) {
-    let entries;
-    try {
-      entries = await fs.readdir(current, { withFileTypes: true });
-    } catch (error) {
-      console.warn("[Transparent Lyrics] Skip unreadable music folder", current, error);
-      return;
-    }
-    for (const entry of entries) {
-      const nextPath = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        await walk(nextPath);
-        continue;
-      }
-      if (entry.isFile() && audioExtensions.has(path.extname(entry.name).toLowerCase())) {
-        results.push(nextPath);
-      }
-    }
-  }
-  await walk(directory);
-  return results;
-}
-
-async function buildImportedAudio(filePath: string, index: number) {
-  const storedPath = await copyToLibrary(filePath, index);
-  const info = await readAudioInfo(filePath);
-  return {
-    ...info,
-    path: storedPath,
-    originalPath: filePath,
-    ext: info.format,
-  };
 }
 
 function createMainWindow() {
@@ -348,7 +266,7 @@ app.whenReady().then(() => {
     });
 
     if (result.canceled) return [];
-    return Promise.all(result.filePaths.map(async (filePath, index) => buildImportedAudio(filePath, index)));
+    return localMusicSource.importFiles(result.filePaths);
   });
 
   ipcMain.handle("window:minimize", (event) => {
@@ -458,11 +376,10 @@ app.whenReady().then(() => {
     });
 
     if (result.canceled || !result.filePaths[0]) return [];
-    const files = await collectAudioFiles(result.filePaths[0]);
-    return Promise.all(files.map(async (filePath, index) => buildImportedAudio(filePath, index)));
+    return localMusicSource.importFolder(result.filePaths[0]);
   });
 
-  ipcMain.handle("library:read-audio-tags", async (_event, filePath: string) => readAudioInfo(filePath));
+  ipcMain.handle("library:read-audio-tags", async (_event, filePath: string) => localMusicSource.readAudioTags(filePath));
 
   ipcMain.handle("library:search-lyrics", async (_event, query: LyricsSearchQuery) => {
     return searchLyricsWithProviders(lyricsProviders, query);
